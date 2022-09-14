@@ -7,6 +7,9 @@ lazy val root = project
     version := "0.1.0-SNAPSHOT",
 
     scalaVersion := scala3Version,
-
-    libraryDependencies += "org.scalameta" %% "munit" % "0.7.29" % Test
+    scalacOptions ++= List("-Xcheck-macros"),
+    libraryDependencies += "org.typelevel" %% "cats-parse" % "0.3.8",
+    libraryDependencies += "org.scalameta" %% "munit" % "0.7.29" % Test,
+    libraryDependencies += "org.typelevel" %% "cats-core" % "2.8.0",
+    libraryDependencies += "io.github.arainko" %% "ducktape" % "0.1.0-RC1"
   )

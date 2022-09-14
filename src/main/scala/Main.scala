@@ -1,3 +1,6 @@
+import cats.parse.{Parser, Parser0}
+import Parser0.given
+
 @main def hello: Unit =
   import scala.io.StdIn.readLine
   println("enter woofer code:")

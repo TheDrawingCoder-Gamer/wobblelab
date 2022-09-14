@@ -1,6 +1,6 @@
 import cats.parse.{Parser, Parser0}
 import Parser0.given
-
+import cats.syntax.all._
 @main def hello: Unit =
   import scala.io.StdIn.readLine
   println("enter woofer code:")
@@ -154,77 +154,35 @@ object DogRegistry:
   val dogExportSeperator = "^"
   def importDog(dogCode : String): Option[RawDog] = 
     var text = DogMath.unscramble(dogCode) 
-    var num = text.indexOf(dogExportSeperator)
-    var geneVersion = GeneVersion.Zero
-    var dogGene = ""
-    var dogAge = DogAge.Empty
-    var value = 0f 
-    var value2 = 0f
-    var geneProp2 = ""
-    var num2 = 0f
-    var dogPersonality : DogPersonality = null
-    if num < 0 then 
-      None 
-    else 
-      val (flag, flag2, flag3) = 
-        if text.charAt(0).toString() == dogExportSeperator then 
-          text = text.substring(1)
-          if text.charAt(0).toString() == dogExportSeperator then 
-            text = text.substring(1) 
-            if text.charAt(0).toString() == dogExportSeperator then 
-              text = text.substring(1)
-              (true, true, true)
-            else 
-              (true, true, false)
+    val sectionParser = Parser.until(Parser.string(dogExportSeperator)) <* Parser.char('^').backtrack.orElse(Parser.end)
+    val flagsParser = Parser.string(dogExportSeperator.repeat(3)).as((true, true, true)).backtrack
+                      | Parser.string(dogExportSeperator.repeat(2)).as((true, true, false)).backtrack
+                      | Parser.string(dogExportSeperator.repeat(1)).as((true, false, false)).backtrack 
+                      | Parser.pure((false, false, false))
+    val parser = flagsParser.flatMap { (flag, flag2, flag3) =>
+
+        val geneParser = 
+          if flag3 then 
+            GeneVersion.parser
           else 
-            (true, false, false)
-        else 
-          (false, false, false)
-      if flag then
-        num = text.indexOf(dogExportSeperator)
-      if flag3 then 
-        geneVersion = GeneVersion.parseString(text.substring(0, num)).get
-        text = text.substring(num + 1) 
-        num = text.indexOf(dogExportSeperator)
-      dogGene = DogMath.geneticDecode(text.substring(0, num))
-      println("Dog gene: " + dogGene)
-      var text2 = text.substring(num + 1)
-      num = text2.indexOf(dogExportSeperator)
-      geneProp2 = DogMath.geneticDecode(text2.substring(0, num))
-      geneProp2 = geneProp2.replace('0', 'a')
-      geneProp2 = geneProp2.replace('1', 'A')
-      text2 = text2.substring(num + 1)
-      num = text2.indexOf(dogExportSeperator)
-      dogAge = DogAge.parseString(text2.substring(0, num))
-      text2 = text2.substring(num + 1)
-      num = text2.indexOf(dogExportSeperator)
-      num2 = text2.substring(0, num).toFloat 
-      text2 =text2.substring(num + 1)
-      num = text2.indexOf(dogExportSeperator)
-      if flag2 then 
-        value2 = text2.substring(0, num).toFloat
-        text2 = text2.substring(num + 1)
-        num = text2.indexOf(dogExportSeperator)
-        value = text2.substring(0, num).toFloat 
-        text2 = text2.substring(num + 1)
-        num = text2.indexOf(dogExportSeperator)
-      if flag then 
-        val social = SocialPersonality.parseString(text2.substring(0, 1))
-        val energy = EnergyPersonality.parseString(text2.substring(1, 2))
-        val food = FoodPersonality.parseString(text2.substring(2, 3))
-        val mischief = MischiefPersonality.parseString(text2.substring(3, 4))
-        val niceness = NicenessPersonality.parseString(text2.substring(4, 5))
-        val pettable = PettablePersonality.parseString(text2.substring(5, 6))
-        val text4 = text2.substring(6, 7)
-        val loudness = 
-          if text4 != dogExportSeperator then 
-            LoudnessPersonality.parseString(text4) 
+            Parser.pure(GeneVersion.Zero)
+        val flag2thingies = 
+          if flag2 then 
+            sectionParser.mapFilter(_.toFloatOption)
           else 
-            LoudnessPersonality.StandardLoud
-        text2 = text2.substring(num + 1) 
-        num = text2.indexOf(dogExportSeperator)
-        dogPersonality = DogPersonality(social, energy, food, mischief, niceness, pettable, loudness)
-      Some(RawDog(dogGene, geneProp2, geneVersion, dogAge, num2, value2, value, dogPersonality))
+            Parser.pure(0.0f)
+        (geneParser <* Parser.char('^')
+        ,sectionParser.map(DogMath.geneticDecode(_))
+        ,sectionParser.map(DogMath.geneticDecode(_)).map(_.replace('0', 'a').replace('1', 'A'))
+        ,sectionParser.map(DogAge.parseString(_))
+        ,sectionParser.mapFilter(_.toFloatOption)
+        ,flag2thingies
+        ,flag2thingies
+        ,if flag then DogPersonality.parser <* Parser.char('^') else Parser.pure(DogPersonality.empty)
+        ).mapN(RawDog.apply)
+    }
+    parser.parseAll(text).toOption
+        
 enum GeneVersion(id: Int, name: String):
   case All extends GeneVersion(-1, "ALL")
   case Zero extends GeneVersion(0, "ZERO")
@@ -232,7 +190,9 @@ enum GeneVersion(id: Int, name: String):
   case Two extends GeneVersion(2, "TWO")
   case Three extends GeneVersion(3, "THREE")
   
-object GeneVersion: 
+object GeneVersion:
+  val parser = 
+    Parser.until(Parser.char('^')).mapFilter(_.toIntOption).mapFilter(ofInt(_))
   def ofInt(i: Int) = 
     i match 
       case -1 => Some(All)
@@ -324,8 +284,22 @@ object DogAge:
           case "ANCIENT" => Ancient 
           case _ => throw IllegalArgumentException("invalid life stage")
 case class DogPersonality(social: SocialPersonality, energy: EnergyPersonality, food: FoodPersonality, mischief: MischiefPersonality, niceness: NicenessPersonality,  pettable: PettablePersonality, loudness: LoudnessPersonality)
+object DogPersonality {
+  val parser = 
+    (Parser.length(1).map(SocialPersonality.parseString(_))
+    ,Parser.length(1).map(EnergyPersonality.parseString(_))
+    ,Parser.length(1).map(FoodPersonality.parseString(_))
+    ,Parser.length(1).map(MischiefPersonality.parseString(_))
+    ,Parser.length(1).map(NicenessPersonality.parseString(_))
+    ,Parser.length(1).map(PettablePersonality.parseString(_))
+    ,Parser.char('^').as(LoudnessPersonality.StandardLoud).backtrack.orElse(Parser.length(1).map(LoudnessPersonality.parseString(_)))
+    ).mapN(DogPersonality.apply)
+  val empty = 
+    DogPersonality(SocialPersonality.SocialStandard, EnergyPersonality.StandardEnergy, FoodPersonality.Standard, MischiefPersonality.StandardMischief, NicenessPersonality.NiceStandard,
+    PettablePersonality.LikesPetting, LoudnessPersonality.StandardLoud)
+}
 // Not what you think you sicko!!!
-case class RawDog(dogGene: String, domRecGene: String, geneVersion: GeneVersion, dogAge: DogAge, dogAgeProgress: Float, eolModifier: Float, lifeExtension: Float, personality: DogPersonality):
+case class RawDog(geneVersion: GeneVersion, dogGene: String, domRecGene: String, dogAge: DogAge, dogAgeProgress: Float, eolModifier: Float, lifeExtension: Float, personality: DogPersonality):
   def toDog = 
     val genes = dogGene.split('|')
     val gene0Pre = genes(0).grouped(5)
@@ -334,7 +308,6 @@ case class RawDog(dogGene: String, domRecGene: String, geneVersion: GeneVersion,
     val prop1genes = DogGene1.parse(genes.tail.iterator)
     val domRecGenes = DomRecGene.parse(domRecGene)
     Dog(personality, prop0genes, prop1genes, domRecGenes, dogAge, dogAgeProgress, eolModifier, lifeExtension)
-    
 case class Dog(personality: DogPersonality, geneProp0 : DogGene0, geneProp1: DogGene1, domRecGene : DomRecGene, age: DogAge, ageProgress: Float, eolModifier: Float, lifeExtension: Float)
 case class DogGene0( 
     randomSeed : String,

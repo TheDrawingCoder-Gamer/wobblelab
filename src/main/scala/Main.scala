@@ -1,6 +1,8 @@
 import cats.parse.{Parser, Parser0}
 import Parser0.given
 import cats.syntax.all._
+import net.bulbyvr.magic._
+import annotation.experimental
 @main def hello: Unit =
   import scala.io.StdIn.readLine
   println("enter woofer code:")
@@ -545,7 +547,11 @@ case class DomRecGene(
   mouthPointed : DomRecAllele,
   mouthCutoff : DomRecAllele,
   mouthWiggle : DomRecAllele)
+@experimental
 object DomRecGene:
+  val parser =
+    import net.bulbyvr.magic.FunctionHelper
+    FunctionHelper.curried(DomRecGene.apply)
   def parse(str: String) : DomRecGene = 
     val groups = str.grouped(2)
     val frontLeftLeg = DomRecAllele.parse(groups)

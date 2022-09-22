@@ -2,16 +2,15 @@ import cats.parse.{Parser, Parser0}
 import Parser0.given
 import cats.syntax.all._
 import net.bulbyvr.magic._
-import annotation.experimental
-@main def hello: Unit =
+import scala.annotation.experimental
+@experimental @main def hello: Unit =
   import scala.io.StdIn.readLine
   println("enter woofer code:")
   val code = readLine();
   val decryptCode = DogMath.unscramble(code)
   println(decryptCode)
   println(DogRegistry.importDog(code).get.toDog.toString)
-def msg = "I was compiled by Scala 3. :)"
-
+@experimental
 object DogMath: 
   val seperatorSymbol = '|'
   val tolerance = 0.0001f
@@ -151,6 +150,7 @@ object DogMath:
           println ("Invalid SUB length")
     }
     text
+@experimental
 object DogRegistry: 
   val currentGeneVersion = 3
   val dogExportSeperator = "^"
@@ -301,6 +301,7 @@ object DogPersonality {
     PettablePersonality.LikesPetting, LoudnessPersonality.StandardLoud)
 }
 // Not what you think you sicko!!!
+@experimental
 case class RawDog(geneVersion: GeneVersion, dogGene: String, domRecGene: String, dogAge: DogAge, dogAgeProgress: Float, eolModifier: Float, lifeExtension: Float, personality: DogPersonality):
   def toDog = 
     val genes = dogGene.split('|')
@@ -340,37 +341,36 @@ case class DogGene0(
     patternInfo : String,
     extraBits : String
       )
-object DogGene0: 
-  def parse(groups: Iterator[String]) : DogGene0 =
-    val randomSeed = List.fill(2)(groups.next).fold("")(_ + _)
-    val bodyShiny = ShinyGene.parse(groups)
-    val bodyColor = ColorGene.parse(groups)
-    val legShiny = ShinyGene.parse(groups)
-    val legColor = ColorGene.parse(groups)
-    val noseShiny = ShinyGene.parse(groups)
-    val noseColor = ColorGene.parse(groups)
-    val noseModA = DualGene.parse(groups)
-    val hornSize = DualGene.parse(groups)
-    val earModA = DualGene.parse(groups)
-    val earCurl = DualGene.parse(groups)
-    val snoutModA = DualGene.parse(groups)
-    val snoutModB = DualGene.parse(groups)
-    val snoutModC = DualGene.parse(groups) 
-    val headSize = DualGene.parse(groups)
-    val wingSize = DualGene.parse(groups)
-    val stanceWidthFront = DualGene.parse(groups)
-    val stanceWidthBack = DualGene.parse(groups)
-    val patternColor = ColorGene.parsePattern(groups)
-    val patternAlpha = groups.next()
-    val patternShiny = ShinyGene.parse(groups)
-    val patternNum = groups.next()
-    val patternFlipX = List.fill(5)(Option.when(groups.hasNext)(groups.next)).flatten.fold("")(_ + _)
-    val patternFlipY = List.fill(5)(Option.when(groups.hasNext)(groups.next)).flatten.fold("")(_ + _)
-    val patternInfo = List.fill(25)(Option.when(groups.hasNext)(groups.next)).flatten.fold("")(_ + _)
-    val extraBits = groups.toList.fold("")(_ + _)
-    DogGene0(randomSeed, bodyShiny, bodyColor, legShiny, legColor, noseShiny, noseColor, noseModA, hornSize, earModA, earCurl,
-      snoutModA, snoutModB, snoutModC, headSize, wingSize, stanceWidthFront, stanceWidthBack, patternColor, patternAlpha, patternShiny, 
-      patternNum, patternFlipX, patternFlipY, patternInfo, extraBits)
+object DogGene0:
+  val parser : Parser[DogGene0] = 
+    val sLen = 5 
+    ( Parser.length(sLen * 2)
+    , ShinyGene.parser 
+    , ColorGene.parser 
+    , ShinyGene.parser 
+    , ColorGene.parser 
+    , ShinyGene.parser 
+    , ColorGene.parser 
+    , DualGene.parserGene0
+    , DualGene.parserGene0 
+    , DualGene.parserGene0  
+    , DualGene.parserGene0  
+    , DualGene.parserGene0  
+    , DualGene.parserGene0  
+    , DualGene.parserGene0  
+    , DualGene.parserGene0  
+    , DualGene.parserGene0  
+    , DualGene.parserGene0  
+    , DualGene.parserGene0  
+    , ColorGene.parserPattern 
+    , Parser.length(sLen)
+    , ShinyGene.parser 
+    , Parser.length(sLen)
+    , Parser.length(sLen * 5)
+    , Parser.length(sLen * 5)
+    , Parser.length(sLen * 25)
+    , Parser.until(Parser.char('|')) <* Parser.char('|')
+    ).mapN[Parser, DogGene0](DogGene0.apply)
 
 case class DogGene1(
   headNumber : String,
@@ -392,7 +392,26 @@ case class DogGene1(
   legPairsBack : String 
   )
 object DogGene1: 
-  def parse(groups : Iterator[String]) = 
+  def parser = 
+    val sectionParser = Parser.until(Parser.char('|')) <* Parser.char('|').as(()).orElse(Parser.unit)
+    ( sectionParser
+    , DualGene.parserGene1 
+    , DualGene.parserGene1 
+    , DualGene.parserGene1 
+    , DualGene.parserGene1
+    , DualGene.parserGene1 
+    , DualGene.parserGene1 
+    , sectionParser 
+    , sectionParser 
+    , DualGene.parserGene1 
+    , DualGene.parserGene1 
+    , DualGene.parserGene1 
+    , DualGene.parserGene1 
+    , DualGene.parserGene1 
+    , DualGene.parserGene1
+    , sectionParser 
+    , sectionParser ).mapN(DogGene1.apply)
+  def parse(groups : Iterator[String]) =
     val headNumber = groups.next()
     val bodyScaleX = DualGene.parse(groups)
     val bodyScaleZ = DualGene.parse(groups)
@@ -414,17 +433,14 @@ object DogGene1:
       tailNum, wingNum, legScaleXZFront, legScaleXZBack, legScaleYFrontTop, legScaleYFrontBot, legScaleYBackTop,
       legScaleYBackBot, legPairsFront, legPairsBack)
 case class ShinyGene( 
-    glossPlus : String,
-    glossMinus : String,
     metallicPlus : String, 
-    metallicMinus : String)
-object ShinyGene: 
-  def parse(groups: Iterator[String]): ShinyGene =
-    val metallicPlus = groups.next()
-    val metallicMinus = groups.next() 
-    val glossPlus = groups.next() 
-    val glossMinus = groups.next()
-    ShinyGene(glossPlus, glossMinus, metallicPlus, metallicMinus)
+    metallicMinus : String,
+    glossPlus : String,
+    glossMinus : String)
+object ShinyGene:
+  val parser = 
+    val sectionParser = Parser.length(5)
+    (sectionParser, sectionParser, sectionParser, sectionParser).mapN[Parser, ShinyGene](ShinyGene.apply)
 case class ColorGene(
     emissionRedPlus : String, 
     emissionRedMinus : String,
@@ -439,7 +455,26 @@ case class ColorGene(
     baseBluePlus : String,
     baseBlueMinus : String
   )
-object ColorGene: 
+object ColorGene:
+  private val parserBase = 
+    val sectionParser = Parser.length(5)
+    ( sectionParser 
+    , sectionParser 
+    , sectionParser
+    , sectionParser
+    , sectionParser 
+    , sectionParser 
+    , sectionParser 
+    , sectionParser 
+    , sectionParser 
+    , sectionParser 
+    , sectionParser 
+    , sectionParser ) 
+  val parser : Parser[ColorGene] = 
+    parserBase.mapN[Parser, ColorGene](ColorGene.apply)
+  val parserPattern = 
+    parserBase.mapN[Parser, ColorGene]( ( g, h, i, j, k, l, a, b, c, d, e, f) => 
+        ColorGene(a, b, c, d, e, f, g, h, i, j, k, l) )
   def parsePattern(groups : Iterator[String]) : ColorGene = 
       val bRP = groups.next()
       val bRM = groups.next()
@@ -471,13 +506,22 @@ object ColorGene:
 case class DualGene(
   plus : String,
   minus : String )
-object DualGene: 
+object DualGene:
+  val parserGene0 = 
+    val sectionParser = Parser.length(5)
+    (sectionParser, sectionParser).mapN[Parser, DualGene](DualGene.apply)
+  val parserGene1 = 
+    val sectionParser = Parser.until(Parser.char('|'))
+    (sectionParser, sectionParser <* Parser.char('|').backtrack.orElse(Parser.unit)).mapN[Parser, DualGene](DualGene.apply)
   def parse(groups : Iterator[String]) : DualGene = 
     val plus = groups.next()
     val minus = groups.next()
     DualGene(plus, minus)
 case class DomRecAllele(leftDom: Boolean, rightDom : Boolean)
 object DomRecAllele: 
+  val parser = 
+    val cParser = Parser.char('A').as(true).backtrack.orElse(Parser.char('a').as(false))
+    (cParser, cParser).mapN[Parser, DomRecAllele](DomRecAllele.apply)
   def parse(groups : Iterator[String]) : DomRecAllele = 
     val allele = groups.next() 
     val domL = allele.charAt(0) == 'A'
@@ -549,9 +593,72 @@ case class DomRecGene(
   mouthWiggle : DomRecAllele)
 @experimental
 object DomRecGene:
-  val parser =
+  val parser : Parser0[DomRecGene] =
     import net.bulbyvr.magic.FunctionHelper
-    FunctionHelper.curried(DomRecGene.apply)
+    FunctionHelper.curried(DomRecGene.apply).pure[Parser0]
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
+      .ap(DomRecAllele.parser)
   def parse(str: String) : DomRecGene = 
     val groups = str.grouped(2)
     val frontLeftLeg = DomRecAllele.parse(groups)

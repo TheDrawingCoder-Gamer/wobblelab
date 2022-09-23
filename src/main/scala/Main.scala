@@ -9,7 +9,12 @@ import scala.annotation.experimental
   val code = readLine();
   val decryptCode = DogMath.unscramble(code)
   println(decryptCode)
-  println(DogRegistry.importDog(code).get.toDog.toString)
+  val rawdoggie = DogRegistry.importDog(code).get
+  println(rawdoggie)
+  val doggie = rawdoggie.toDog.get
+  println(doggie.toString)
+  println("\n")
+  println(DogRegistry.exportDog(doggie.asRawDog))
 @experimental
 object DogMath: 
   val seperatorSymbol = '|'
@@ -154,6 +159,14 @@ object DogMath:
 object DogRegistry: 
   val currentGeneVersion = 3
   val dogExportSeperator = "^"
+  def exportDog(rawDog : RawDog) : String = 
+    val dogGene = DogMath.geneticEncode(rawDog.dogGene)
+    val domRecGene = DogMath.geneticEncode(rawDog.domRecGene.replace('A','1').replace('a','0'))
+    DogMath.scramble("^^^" + rawDog.geneVersion.versionId + dogExportSeperator + 
+    dogGene + dogExportSeperator + domRecGene + dogExportSeperator + rawDog.dogAge.toString.toUpperCase + 
+    dogExportSeperator + rawDog.dogAgeProgress + dogExportSeperator + rawDog.eolModifier + 
+    dogExportSeperator + rawDog.lifeExtension + dogExportSeperator + rawDog.personality.serialized 
+    + dogExportSeperator + rawDog.dogName)
   def importDog(dogCode : String): Option[RawDog] = 
     var text = DogMath.unscramble(dogCode) 
     val sectionParser = Parser.until(Parser.string(dogExportSeperator)) <* Parser.char('^').backtrack.orElse(Parser.end)
@@ -181,11 +194,12 @@ object DogRegistry:
         ,flag2thingies
         ,flag2thingies
         ,if flag then DogPersonality.parser <* Parser.char('^') else Parser.pure(DogPersonality.empty)
+        , Parser.until(Parser.end)
         ).mapN(RawDog.apply)
     }
     parser.parseAll(text).toOption
         
-enum GeneVersion(id: Int, name: String):
+enum GeneVersion(val versionId: Int, val name: String):
   case All extends GeneVersion(-1, "ALL")
   case Zero extends GeneVersion(0, "ZERO")
   case One extends GeneVersion(1, "ONE")
@@ -285,7 +299,10 @@ object DogAge:
           case "ADULT" => Adult 
           case "ANCIENT" => Ancient 
           case _ => throw IllegalArgumentException("invalid life stage")
-case class DogPersonality(social: SocialPersonality, energy: EnergyPersonality, food: FoodPersonality, mischief: MischiefPersonality, niceness: NicenessPersonality,  pettable: PettablePersonality, loudness: LoudnessPersonality)
+case class DogPersonality(social: SocialPersonality, energy: EnergyPersonality, food: FoodPersonality, mischief: MischiefPersonality, niceness: NicenessPersonality,  pettable: PettablePersonality, loudness: LoudnessPersonality): 
+  lazy val serialized = 
+    social.ordinal.toString + energy.ordinal.toString + food.ordinal.toString + mischief.ordinal.toString + niceness.ordinal.toString + pettable.ordinal.toString + 
+    loudness.ordinal.toString
 object DogPersonality {
   val parser = 
     (Parser.length(1).map(SocialPersonality.parseString(_))
@@ -302,16 +319,28 @@ object DogPersonality {
 }
 // Not what you think you sicko!!!
 @experimental
-case class RawDog(geneVersion: GeneVersion, dogGene: String, domRecGene: String, dogAge: DogAge, dogAgeProgress: Float, eolModifier: Float, lifeExtension: Float, personality: DogPersonality):
-  def toDog = 
-    val genes = dogGene.split('|')
-    val gene0Pre = genes(0).grouped(5)
-    println(gene0Pre.length)
-    val prop0genes = DogGene0.parse(genes(0).grouped(5))
-    val prop1genes = DogGene1.parse(genes.tail.iterator)
-    val domRecGenes = DomRecGene.parse(domRecGene)
-    Dog(personality, prop0genes, prop1genes, domRecGenes, dogAge, dogAgeProgress, eolModifier, lifeExtension)
-case class Dog(personality: DogPersonality, geneProp0 : DogGene0, geneProp1: DogGene1, domRecGene : DomRecGene, age: DogAge, ageProgress: Float, eolModifier: Float, lifeExtension: Float)
+case class RawDog(geneVersion: GeneVersion, dogGene: String, domRecGene: String, dogAge: DogAge, dogAgeProgress: Float, eolModifier: Float, lifeExtension: Float, personality: DogPersonality, dogName : String):
+  def toDog : Option[Dog] = 
+    val gene0res = DogGene0.parser.parse(dogGene)
+    gene0res match 
+      case Left(e) =>
+        println(e)
+        None
+      case Right((rest, prop0genes)) =>
+        println(rest)
+        DogGene1.parser.parseAll(rest) match 
+          case Left(e) => 
+            println(e)
+            None 
+          case Right(prop1genes) => 
+            val domRecGenes = DomRecGene.parser.parseAll(domRecGene).toOption.get
+            Some(Dog(personality, prop0genes, prop1genes, domRecGenes, dogAge, dogAgeProgress, eolModifier, lifeExtension, dogName))
+@experimental
+case class Dog(personality: DogPersonality, geneProp0 : DogGene0, geneProp1: DogGene1, domRecGene : DomRecGene, age: DogAge, ageProgress: Float, 
+  eolModifier: Float, lifeExtension: Float, dogName : String):
+  def asRawDog = 
+    val dogGene = geneProp0.serialized + "|" + geneProp1.serialized 
+    RawDog(GeneVersion.Three, dogGene, domRecGene.serialized, age, ageProgress, eolModifier, lifeExtension, personality, dogName)
 case class DogGene0( 
     randomSeed : String,
     bodyShiny : ShinyGene,
@@ -340,37 +369,49 @@ case class DogGene0(
     patternFlipY : String,
     patternInfo : String,
     extraBits : String
-      )
+      ): 
+    lazy val serialized = 
+      randomSeed + bodyShiny.serialized + bodyColor.serialized +
+      legShiny.serialized + legColor.serialized + noseShiny.serialized + 
+      noseColor.serialized + noseModA.gene0Serialized + hornSize.gene0Serialized + 
+      earModA.gene0Serialized + earCurl.gene0Serialized + snoutModA.gene0Serialized +
+      snoutModB.gene0Serialized + snoutModC.gene0Serialized + headSize.gene0Serialized + 
+      wingSize.gene0Serialized + stanceWidthFront.gene0Serialized + stanceWidthBack.gene0Serialized +
+      patternColor.patternSerialized + patternAlpha + patternShiny.serialized + patternNum + 
+      patternFlipX + patternFlipY + patternInfo + extraBits
+@experimental 
 object DogGene0:
-  val parser : Parser[DogGene0] = 
+  import net.bulbyvr.magic.FunctionHelper
+  val parser : Parser0[DogGene0] = 
     val sLen = 5 
-    ( Parser.length(sLen * 2)
-    , ShinyGene.parser 
-    , ColorGene.parser 
-    , ShinyGene.parser 
-    , ColorGene.parser 
-    , ShinyGene.parser 
-    , ColorGene.parser 
-    , DualGene.parserGene0
-    , DualGene.parserGene0 
-    , DualGene.parserGene0  
-    , DualGene.parserGene0  
-    , DualGene.parserGene0  
-    , DualGene.parserGene0  
-    , DualGene.parserGene0  
-    , DualGene.parserGene0  
-    , DualGene.parserGene0  
-    , DualGene.parserGene0  
-    , DualGene.parserGene0  
-    , ColorGene.parserPattern 
-    , Parser.length(sLen)
-    , ShinyGene.parser 
-    , Parser.length(sLen)
-    , Parser.length(sLen * 5)
-    , Parser.length(sLen * 5)
-    , Parser.length(sLen * 25)
-    , Parser.until(Parser.char('|')) <* Parser.char('|')
-    ).mapN[Parser, DogGene0](DogGene0.apply)
+    FunctionHelper.curried(DogGene0.apply).pure[Parser0]
+    .ap(Parser.length(sLen * 2))
+    .ap(ShinyGene.parser)
+    .ap(ColorGene.parser)
+    .ap(ShinyGene.parser)
+    .ap(ColorGene.parser)
+    .ap(ShinyGene.parser)
+    .ap(ColorGene.parser)
+    .ap(DualGene.parserGene0)
+    .ap(DualGene.parserGene0) 
+    .ap(DualGene.parserGene0)
+    .ap(DualGene.parserGene0)  
+    .ap(DualGene.parserGene0)  
+    .ap(DualGene.parserGene0)
+    .ap(DualGene.parserGene0)  
+    .ap(DualGene.parserGene0)
+    .ap(DualGene.parserGene0)  
+    .ap(DualGene.parserGene0)
+    .ap(DualGene.parserGene0)
+    .ap(ColorGene.parserPattern)
+    .ap(Parser.length(sLen))
+    .ap(ShinyGene.parser)
+    .ap(Parser.length(sLen))
+    .ap(Parser.length(sLen * 5))
+    .ap(Parser.length(sLen * 5))
+    .ap(Parser.length(sLen * 25))
+    .ap(Parser.until0(Parser.char('|')) <* Parser.char('|'))
+    
 
 case class DogGene1(
   headNumber : String,
@@ -390,12 +431,30 @@ case class DogGene1(
   legScaleYBackBot : DualGene,
   legPairsFront : String,
   legPairsBack : String 
-  )
+  ): 
+  lazy val serialized = 
+    headNumber + 
+    "|" + bodyScaleX.gene1Serialized +
+    "|" + bodyScaleZ.gene1Serialized +
+    "|" + bodyScaleY.gene1Serialized + 
+    "|" + bodyScaleYZ.gene1Serialized + 
+    "|" + bodyScaleGlobal.gene1Serialized +
+    "|" + tailScale.gene1Serialized + 
+    "|" + tailNum + 
+    "|" + wingNum + 
+    "|" + legScaleXZFront.gene1Serialized + 
+    "|" + legScaleXZBack.gene1Serialized +
+    "|" + legScaleYFrontTop.gene1Serialized + 
+    "|" + legScaleYFrontBot.gene1Serialized + 
+    "|" + legScaleYBackTop.gene1Serialized + 
+    "|" + legScaleYBackBot.gene1Serialized +
+    "|" + legPairsFront + 
+    "|" + legPairsBack 
 object DogGene1: 
   def parser = 
-    val sectionParser = Parser.until(Parser.char('|')) <* Parser.char('|').as(()).orElse(Parser.unit)
+    val sectionParser = Parser.until(Parser.char('|')) <* Parser.char('|')
     ( sectionParser
-    , DualGene.parserGene1 
+    , DualGene.parserGene1
     , DualGene.parserGene1 
     , DualGene.parserGene1 
     , DualGene.parserGene1
@@ -410,7 +469,7 @@ object DogGene1:
     , DualGene.parserGene1 
     , DualGene.parserGene1
     , sectionParser 
-    , sectionParser ).mapN(DogGene1.apply)
+    , Parser.until(Parser.end) ).mapN(DogGene1.apply)
   def parse(groups : Iterator[String]) =
     val headNumber = groups.next()
     val bodyScaleX = DualGene.parse(groups)
@@ -436,7 +495,10 @@ case class ShinyGene(
     metallicPlus : String, 
     metallicMinus : String,
     glossPlus : String,
-    glossMinus : String)
+    glossMinus : String): 
+  lazy val serialized = 
+    metallicPlus + metallicMinus + 
+    glossPlus + glossMinus
 object ShinyGene:
   val parser = 
     val sectionParser = Parser.length(5)
@@ -454,7 +516,17 @@ case class ColorGene(
     baseGreenMinus : String,
     baseBluePlus : String,
     baseBlueMinus : String
-  )
+  ):
+  lazy val serialized = 
+    emissionRedPlus + emissionRedMinus + emissionGreenPlus + 
+    emissionGreenMinus + emissionBluePlus + emissionBlueMinus + 
+    baseRedPlus + baseRedMinus + baseGreenPlus + 
+    baseGreenMinus + baseBluePlus + baseBlueMinus 
+  lazy val patternSerialized =
+    baseRedPlus + baseRedMinus + baseGreenPlus + 
+    baseGreenMinus + baseBluePlus + baseBlueMinus +
+    emissionRedPlus + emissionRedMinus + emissionGreenPlus + 
+    emissionGreenMinus + emissionBluePlus + emissionBlueMinus
 object ColorGene:
   private val parserBase = 
     val sectionParser = Parser.length(5)
@@ -505,19 +577,27 @@ object ColorGene:
       ColorGene(emRP, emRM, emGP, emGM, emBP, emBM, bRP, bRM, bGP, bGM, bBP, bBM)
 case class DualGene(
   plus : String,
-  minus : String )
+  minus : String ):
+    lazy val gene0Serialized = 
+      plus + minus 
+    lazy val gene1Serialized = 
+      plus + "|" + minus 
 object DualGene:
   val parserGene0 = 
     val sectionParser = Parser.length(5)
     (sectionParser, sectionParser).mapN[Parser, DualGene](DualGene.apply)
   val parserGene1 = 
     val sectionParser = Parser.until(Parser.char('|'))
-    (sectionParser, sectionParser <* Parser.char('|').backtrack.orElse(Parser.unit)).mapN[Parser, DualGene](DualGene.apply)
+    (sectionParser <* Parser.char('|'), sectionParser <* Parser.char('|').backtrack.orElse(Parser.unit)).mapN[Parser, DualGene](DualGene.apply)
   def parse(groups : Iterator[String]) : DualGene = 
     val plus = groups.next()
     val minus = groups.next()
     DualGene(plus, minus)
-case class DomRecAllele(leftDom: Boolean, rightDom : Boolean)
+case class DomRecAllele(leftDom: Boolean, rightDom : Boolean): 
+  lazy val serialized = 
+    val l = if leftDom then 'A' else 'a'
+    val r = if rightDom then 'A' else 'a'
+    s"$l$r"
 object DomRecAllele: 
   val parser = 
     val cParser = Parser.char('A').as(true).backtrack.orElse(Parser.char('a').as(false))
@@ -590,7 +670,35 @@ case class DomRecGene(
   mouthMissingTeeth : DomRecAllele,
   mouthPointed : DomRecAllele,
   mouthCutoff : DomRecAllele,
-  mouthWiggle : DomRecAllele)
+  mouthWiggle : DomRecAllele):
+  lazy val serialized = 
+    frontLeftLeg.serialized + frontRightLeg.serialized +
+    backLeftLeg.serialized + backRightLeg.serialized +
+    voicePitchHigh.serialized +
+    voicePitchLow.serialized + voiceHoarse.serialized +
+    smallPupils.serialized + eyelids.serialized +
+    oblongEyes.serialized + multiPupils.serialized +
+    teeth.serialized + vMouth.serialized + 
+    openMouth.serialized + tiltedEars.serialized + 
+    nubTail.serialized + tailCurl.serialized + 
+    tailStiffness.serialized + stripePattern.serialized + 
+    splotchRepeatingPattern.serialized + noPattern.serialized +
+    wings.serialized + wingIssues.serialized + missingWing.serialized +
+    alignment.serialized + wingFeathers.serialized + longEyes.serialized + 
+    horizontalEyes.serialized + triangleEyes.serialized + 
+    missingPupilEyes.serialized + decorativeEyes.serialized + 
+    lashesEyes.serialized + spiralEyes.serialized + 
+    triangleEyes2.serialized + geometricEyes.serialized + 
+    flatTail.serialized + bulbousTail.serialized + 
+    repeatedTail.serialized + thinTail.serialized + tail3d.serialized + 
+    noseExtrusion.serialized + noseStretch.serialized + noseFlat.serialized + 
+    noseRepeated.serialized + earFilled.serialized + earFlop.serialized + 
+    earSharp.serialized + earHalved.serialized + earConic.serialized +
+    earCurlSynced.serialized + traditionalHorns.serialized + hornsCenter.serialized + 
+    hornsNone.serialized + hornsCurled.serialized + hornsNub.serialized + 
+    mouthHappiness.serialized + mouthCheeks.serialized + hornsThick.serialized + 
+    hornsThin.serialized + mouthMissingTeeth.serialized + mouthPointed.serialized + mouthCutoff.serialized + 
+    mouthWiggle.serialized
 @experimental
 object DomRecGene:
   val parser : Parser0[DomRecGene] =

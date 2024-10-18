@@ -6,8 +6,6 @@ import scala.runtime.FunctionXXL
 type Curried[Tup <: Tuple, R] = Tup match
   case (h *: t) => h => Curried[t, R]
   case EmptyTuple => R
-import io.github.arainko.ducktape.function.FunctionMirror
-import io.github.arainko.ducktape.function.FunctionMirror.given
 import compiletime.error 
 import annotation.experimental 
 import annotation.implicitNotFound
@@ -16,12 +14,12 @@ object FunctionHelper {
   import util.TupledFunction
   def tupled[F, G](fun : F)(using f : TupledFunction[F, G]) : G = 
     f.tupled(fun)
-  inline private def curryTuple[Tup <: Tuple, R](f : Tup => R) : Curried[Tup, R] = inline erasedValue[Tup] match 
+  inline private def curryTuple[Tup <: Tuple, R](f : Tup => R) : Curried[Tup, R] = inline erasedValue[Tup] match
     case _ : (h *: t) => 
       (x : h) => curryTuple[t, R]((y : t) => f((x *: y).asInstanceOf))
     case _ : EmptyTuple => f(EmptyTuple.asInstanceOf)
 
-  inline def curried[F, T <: Tuple, R](fun : F)(using tf : TupledFunction[F, T => R])(using fm : FunctionMirror[F]) : Curried[T, R] = 
+  inline def curried[F, T <: Tuple, R](fun : F)(using tf : TupledFunction[F, T => R]) : Curried[T, R] = 
         curryTuple(tupled(fun))
 }
 /*

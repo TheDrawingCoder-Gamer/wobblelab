@@ -1,5 +1,4 @@
-// For more information on writing tests, see
-// https://scalameta.org/munit/docs/getting-started.html
+import net.bulbyvr.wobblelab.*
 @annotation.experimental
 class MySuite extends munit.FunSuite {
   val testDog = "4CaFb3881Ca;2F8Db58b0c10:^F370E4U^C=3610:0EdF3f0D3<tn89B660c0C2A2^00210A4346a:F4B0c12068028D81160D8Abb5^69F83Cc720724=8;;:g6C2dC4=ba:b01c210b9C1429c^F<B013^4a08F=;B67;<8aF0;9aF23<=7b0FD:8FFFF^:b8Ad3F2ED7=03CF14a3^7EF;FC1T0^A63.002L03b6=01110<0ag1^1C104C:5002Cc90b92c;F1C8E638a2C84DFdE186DD09F3a69.1bcc21Ci13^7Fca1:0"

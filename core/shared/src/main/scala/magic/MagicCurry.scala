@@ -1,23 +1,25 @@
-package net.bulbyvr.magic
+package net.bulbyvr
+package magic
 
-import deriving.Mirror
-import compiletime.erasedValue
-import scala.runtime.FunctionXXL
-type Curried[Tup <: Tuple, R] = Tup match
+import annotation.experimental
+import scala.compiletime.erasedValue
+import scala.util.TupledFunction
+import cats.Apply
+import cats.implicits.*
+
+type Curried[Tup <: Tuple, R] = Tup match {
   case (h *: t) => h => Curried[t, R]
   case EmptyTuple => R
-import compiletime.error 
-import annotation.experimental 
-import annotation.implicitNotFound
+}
 @experimental
 object FunctionHelper {
-  import util.TupledFunction
   def tupled[F, G](fun : F)(using f : TupledFunction[F, G]) : G = 
     f.tupled(fun)
-  inline private def curryTuple[Tup <: Tuple, R](f : Tup => R) : Curried[Tup, R] = inline erasedValue[Tup] match
+  inline private def curryTuple[Tup <: Tuple, R](f : Tup => R) : Curried[Tup, R] = inline erasedValue[Tup] match {
     case _ : (h *: t) => 
       (x : h) => curryTuple[t, R]((y : t) => f((x *: y).asInstanceOf))
     case _ : EmptyTuple => f(EmptyTuple.asInstanceOf)
+  }
 
   inline def curried[F, T <: Tuple, R](fun : F)(using tf : TupledFunction[F, T => R]) : Curried[T, R] = 
         curryTuple(tupled(fun))
@@ -46,16 +48,17 @@ object ApplicativeHelper {
         
 }
 */
-import cats.Apply
-import cats.syntax.all._
-extension [T <: NonEmptyTuple](self : T)
-  def tupled[F[_]](using Apply[F])(using Tuple.IsMappedBy[F][T]): F[Tuple.InverseMap[T, F]] = 
-    def loop[X <: NonEmptyTuple](x : X): F[NonEmptyTuple] = x match 
+extension [T <: NonEmptyTuple](self : T) {
+  def tupled[F[_]](using Apply[F])(using Tuple.IsMappedBy[F][T]): F[Tuple.InverseMap[T, F]] = { 
+    def loop[X <: NonEmptyTuple](x : X): F[NonEmptyTuple] = x match { 
       case hd *: EmptyTuple =>  hd.asInstanceOf[F[Any]].map(_ *: EmptyTuple)
       case hd *: (tl : NonEmptyTuple) => hd.asInstanceOf[F[Any]].map2(loop(tl))(_ *: _)
+    }
     loop(self).asInstanceOf[F[Tuple.InverseMap[T, F]]]
+  }
   def mapN[F[_], B](using Apply[F])(using Tuple.IsMappedBy[F][T])(f : Tuple.InverseMap[T, F] => B) : F[B] = 
     self.tupled.map(f)
+}
 
 
 

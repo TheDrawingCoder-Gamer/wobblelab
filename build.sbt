@@ -16,10 +16,32 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
     version := "0.1.0-SNAPSHOT",
 
     scalaVersion := scala3Version,
-    scalacOptions ++= List("-Xcheck-macros", "-Xmax-inlines", "65"),
+    scalacOptions ++= List("-Xcheck-macros", "-Xmax-inlines", "300"),
     libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.0.0",
     libraryDependencies += "org.scalameta" %%% "munit" % "1.0.0" % Test,
     libraryDependencies += "org.typelevel" %%% "cats-core" % "2.12.0",
+    libraryDependencies ++= Seq (
+      "io.circe" %%% "circe-core",
+      "io.circe" %%% "circe-generic",
+      "io.circe" %%% "circe-parser",
+    ).map(_ % "0.14.1"),
+    libraryDependencies += "io.circe" %%% "circe-yaml-scalayaml" % "0.16.0",
+    Compile / sourceGenerators += Def.task {
+      val daFile = (Compile / sourceManaged).value / "wobblelab" / "doggenev12.scala"
+      val data = Files.readString(file("assets/genes_v12.yaml").toPath)
+      IO.write(daFile,
+        s"""
+          |package net.bulbyvr
+          |package wobblelab
+          |
+          |val GeneV12_yaml: String =
+          |\"\"\"
+          |$data
+          |\"\"\"
+          |""".stripMargin
+      )
+      Seq(daFile)
+    }.taskValue
   ).jsSettings(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-locales" % "1.2.0"
   )
@@ -73,6 +95,7 @@ def copyImpl(linkDir: File, targetDir: File, baseDir: File) = {
   if (!Files.exists(targetDir.toPath))
     IO.createDirectory(targetDir)
   IO.copyDirectory(linkDir, targetDir)
+  IO.copyDirectory(file("assets"), new File(targetDir, "resources"))
   IO.copyDirectory(new File(baseDir, "web"), targetDir)
 }
 

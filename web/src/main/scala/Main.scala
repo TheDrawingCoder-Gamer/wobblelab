@@ -9,13 +9,15 @@ import cats.effect.syntax.all.*
 import fs2.*
 import fs2.concurrent.*
 import macros.imapCopied
+import net.bulbyvr.wobblelab.db.MasterDogGene
 import org.scalajs.dom
 
 @experimental
 object Main extends IOWebApp {
   import net.bulbyvr.wobblelab.*
+  import RawDog.experimental.*
 
-  def generalPane(dog: SignallingRef[IO, Dog]): Resource[IO,HtmlElement[IO]] = {
+  def generalPane(dog: SignallingRef[IO, GameDog]): Resource[IO,HtmlElement[IO]] = {
     val ageSignal = dog.imapCopied[DogAge]("age")
     val ageProgress = dog.imapCopied[Float]("ageProgress")
     div(
@@ -44,7 +46,7 @@ object Main extends IOWebApp {
           )
         }
       ),
-      strCompTextbox("Random Seed:", SignallingRef.lens[IO, Dog, String](dog)(_.geneProp0.randomSeed, src => it => src.copy(geneProp0 = src.geneProp0.copy(randomSeed = it))))
+      strCompTextbox("Random Seed:", SignallingRef.lens[IO, GameDog, String](dog)(_.masterGene.randomSeed, src => it => src.copy(masterGene = src.masterGene.copy(randomSeed = it))))
     )
   }
   def dualGeneGroup(name: String, dualGene: SignallingRef[IO, DualGene]): Resource[IO, HtmlElement[IO]] = {
@@ -92,57 +94,41 @@ object Main extends IOWebApp {
     )
   }
 
-  def standardGenePane(dog: SignallingRef[IO, Dog]): Resource[IO, HtmlElement[IO]] = {
-    val gene0 = dog.imapCopied[DogGene0]("geneProp0")
-    val gene1 = dog.imapCopied[DogGene1]("geneProp1")
+  def standardGenePane(dog: SignallingRef[IO, GameDog]): Resource[IO, HtmlElement[IO]] = {
+    val masterGene = dog.imapCopied[db.MasterDogGene]("masterGene")
     div(
       cls := "scrollView",
       div(
-        (
-          shinyGeneGroup("Body", gene0.imapCopied[ShinyGene]("bodyShiny")),
-          colorGeneGroup("Body", gene0.imapCopied[ColorGene]("bodyColor")),
-          shinyGeneGroup("Leg", gene0.imapCopied("legShiny")),
-          colorGeneGroup("Leg", gene0.imapCopied("legColor")),
-          shinyGeneGroup("Nose/Ear", gene0.imapCopied("noseShiny")),
-          colorGeneGroup("Nose/Ear", gene0.imapCopied("noseColor")),
-          dualGeneGroup("Nose Size", gene0.imapCopied("noseModA")),
-          dualGeneGroup("Horn Size", gene0.imapCopied("hornSize")),
-          dualGeneGroup("Ear Length", gene0.imapCopied("earModA")),
-          dualGeneGroup("Ear Curl", gene0.imapCopied("earCurl")),
-          dualGeneGroup("Snout Rotation", gene0.imapCopied("snoutModA")),
-          dualGeneGroup("Snout Length", gene0.imapCopied("snoutModB")),
-          dualGeneGroup("Snout Size", gene0.imapCopied("snoutModC")),
-          dualGeneGroup("Head Size", gene0.imapCopied("headSize")),
-          dualGeneGroup("Wing Size", gene0.imapCopied("wingSize"))
-        ),
-        (
-          dualGeneGroup("Stance Width Front", gene0.imapCopied("stanceWidthFront")),
-          dualGeneGroup("Stance Width Back", gene0.imapCopied("stanceWidthBack")),
-          colorGeneGroup("Pattern", gene0.imapCopied("patternColor")),
-          strCompTextbox("Pattern Intensity", gene0.imapCopied("patternAlpha")),
-          shinyGeneGroup("Pattern", gene0.imapCopied("patternShiny")),
-          strCompTextbox("Pattern Frequency", gene0.imapCopied("patternNum")),
-          strCompTextbox("Pattern Horizontal Flip", gene0.imapCopied("patternFlipX")),
-          strCompTextbox("Pattern Frequency", gene0.imapCopied("patternFlipY")),
-          strCompTextbox("Pattern Variations", gene0.imapCopied("patternInfo")),
-          strCompTextbox("Head Number", gene1.imapCopied("headNumber")),
-          dualGeneGroup("Body Scale X", gene1.imapCopied("bodyScaleX")),
-          dualGeneGroup("Body Scale Z", gene1.imapCopied("bodyScaleZ")),
-          dualGeneGroup("Body Scale Y", gene1.imapCopied("bodyScaleY")),
-          dualGeneGroup("Body Girth", gene1.imapCopied("bodyScaleYZ")),
-          dualGeneGroup("Body Size", gene1.imapCopied("bodyScaleGlobal")),
-          dualGeneGroup("Tail Size", gene1.imapCopied("tailScale")),
-        ),
-        strCompTextbox("Tail Number", gene1.imapCopied("tailNum")),
-        strCompTextbox("Wing Number", gene1.imapCopied("wingNum")),
-        dualGeneGroup("Front Leg Girth", gene1.imapCopied("legScaleXZFront")),
-        dualGeneGroup("Back Leg Girth", gene1.imapCopied("legScaleXZBack")),
-        dualGeneGroup("Front Top Leg Length", gene1.imapCopied("legScaleYFrontTop")),
-        dualGeneGroup("Front Bottom Leg Length", gene1.imapCopied("legScaleYFrontBot")),
-        dualGeneGroup("Back Top Leg Length", gene1.imapCopied("legScaleYBackTop")),
-        dualGeneGroup("Back Bottom Leg Length", gene1.imapCopied("legScaleYBackBot")),
-        strCompTextbox("Front Leg Number", gene1.imapCopied("legPairsFront")),
-        strCompTextbox("Back Leg Number", gene1.imapCopied("legPairsBack"))
+        db.GeneticProperty.values.map { key =>
+          strCompTextbox(key.displayName,
+            SignallingRef.lens[IO, MasterDogGene, String](masterGene)
+                         (it => it.getGeneString(key).getOrElse(""),
+                           src => it => src.updatedGeneString(key, it)))
+        }.toList
+      )
+    )
+  }
+
+  def domRecPane(dog: SignallingRef[IO, GameDog]): Resource[IO, HtmlElement[IO]] = {
+    val masterGene = dog.imapCopied[db.MasterDogGene]("masterGene")
+    div(
+      cls := "scrollView",
+      div(
+        children <-- masterGene.map { gene =>
+          gene.domRecGenes.zipWithIndex.map { (it, idx) =>
+            div(
+            select.withSelf { self => (
+              option(value := "Dom", "Dom " + it.shared.dom.displayName),
+              option(value := "Het", "Het " + it.shared.het.displayName),
+              option(value := "Sub", "Sub " + it.shared.sub.displayName),
+              value := it.value.toString,
+              onChange --> {
+                _.evalMap(_ => self.value.get).foreach(v => masterGene.set(gene.copy(domRecGenes = gene.domRecGenes.updated(idx, it.copy(value = db.TraitType.valueOf(v))))))
+              }
+            )}
+            )
+          }
+        }
       )
     )
   }
@@ -150,12 +136,13 @@ object Main extends IOWebApp {
 
   def render: Resource[IO, HtmlElement[IO]] = {
     for {
-      blawg <- SignallingRef[IO].of(Dog.randy).toResource
+      blawg <- SignallingRef[IO].of(Dog.randy.asRawDog.toGameDog).toResource
       selectedTab <- SignallingRef[IO].of(0).toResource
       freakyPanes =
         Vector(
           generalPane(blawg),
-          standardGenePane(blawg)
+          standardGenePane(blawg),
+          domRecPane(blawg)
         )
       res <- {
         div(
@@ -167,8 +154,7 @@ object Main extends IOWebApp {
               onChange --> {
                 _.evalMap(_ => self.value.get).map(DogRegistry.importDog)
                  .unNone
-                 .map(_.toDog)
-                 .unNone
+                 .map(_.toGameDog)
                  .foreach(blawg.set)
               }
             )
@@ -185,6 +171,12 @@ object Main extends IOWebApp {
                 "Standard Genes",
                 onClick --> {
                   _.foreach(_ => selectedTab.set(1))
+                }
+              ),
+              button(
+                "Dom Rec Gene",
+                onClick --> {
+                  _.foreach(_ =>  selectedTab.set(2))
                 }
               )
             ),

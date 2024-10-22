@@ -11,12 +11,23 @@ import fs2.concurrent.*
 import macros.imapCopied
 import net.bulbyvr.wobblelab.db.MasterDogGene
 import org.scalajs.dom
+import scala.compiletime.{constValue, codeOf, summonInline, erasedValue, error}
+import scala.deriving.Mirror
+
 
 @experimental
 object Main extends IOWebApp {
   import net.bulbyvr.wobblelab.*
   import RawDog.experimental.*
 
+  inline def summonSingletonCases[T <: Tuple, A](inline typeName: Any): List[A] =
+    inline erasedValue[T] match
+      case _: EmptyTuple => Nil
+      case _: (h *: t) =>
+        inline summonInline[Mirror.Of[h]] match
+          case m: Mirror.Singleton => m.fromProduct(EmptyTuple).asInstanceOf[A] :: summonSingletonCases[t, A](typeName)
+          case m: Mirror =>
+            error("Enum " + codeOf(typeName) + " contains non singleton case " + codeOf(constValue[m.MirroredLabel]))
   def generalPane(dog: SignallingRef[IO, GameDog]): Resource[IO,HtmlElement[IO]] = {
     val ageSignal = dog.imapCopied[DogAge]("age")
     val ageProgress = dog.imapCopied[Float]("ageProgress")
@@ -132,7 +143,41 @@ object Main extends IOWebApp {
       )
     )
   }
-
+  inline def personalityBinder[T <: scala.reflect.Enum](personalitySignal: SignallingRef[IO, T], name: String)(using mirror: deriving.Mirror.SumOf[T]): Resource[IO, HtmlElement[IO]] = {
+    val cases = summonSingletonCases[mirror.MirroredElemTypes, T](constValue[mirror.MirroredLabel])
+    val caseOf = cases.toVector
+    div(
+      name,
+      select.withSelf {self =>
+        (
+          cases.map(it => option(value := it.ordinal.toString, it.toString)),
+          value <-- personalitySignal.map(_.ordinal.toString),
+          onChange --> {
+            _.evalMap(_ => self.value.get).map(_.toIntOption).unNone.map(caseOf).foreach(personalitySignal.set)
+          }
+        )
+      }
+    )
+  }
+  def personalityPane(dog: SignallingRef[IO, GameDog]): Resource[IO, HtmlElement[IO]] = {
+    val personality = dog.imapCopied[DogPersonality]("personality")
+    val socialPersonality  = personality.imapCopied[SocialPersonality]("social")
+    val energyPersonality = personality.imapCopied[EnergyPersonality]("energy")
+    val foodPersonality = personality.imapCopied[FoodPersonality]("food")
+    val mischiefPersonality = personality.imapCopied[MischiefPersonality]("mischief")
+    val nicenessPersonality = personality.imapCopied[NicenessPersonality]("niceness")
+    val pettablePersonality = personality.imapCopied[PettablePersonality]("pettable")
+    val loudnessPersonality = personality.imapCopied[LoudnessPersonality]("loudness")
+    div(
+      personalityBinder[SocialPersonality](socialPersonality, "Social: "),
+      personalityBinder[EnergyPersonality](energyPersonality, "Energy: "),
+      personalityBinder[FoodPersonality](foodPersonality, "Food: "),
+      personalityBinder[MischiefPersonality](mischiefPersonality, "Mischief: "),
+      personalityBinder[NicenessPersonality](nicenessPersonality, "Niceness: "),
+      personalityBinder[PettablePersonality](pettablePersonality, "Pettable: "),
+      personalityBinder[LoudnessPersonality](loudnessPersonality, "Loudness: ")
+    )
+  }
 
   def render: Resource[IO, HtmlElement[IO]] = {
     for {
@@ -142,7 +187,8 @@ object Main extends IOWebApp {
         Vector(
           generalPane(blawg),
           standardGenePane(blawg),
-          domRecPane(blawg)
+          domRecPane(blawg),
+          personalityPane(blawg)
         )
       res <- {
         div(
@@ -177,6 +223,12 @@ object Main extends IOWebApp {
                 "Dom Rec Gene",
                 onClick --> {
                   _.foreach(_ =>  selectedTab.set(2))
+                }
+              ),
+              button(
+                "Personality",
+                onClick --> {
+                  _.foreach(_ => selectedTab.set(3))
                 }
               )
             ),

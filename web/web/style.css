@@ -1,0 +1,13 @@
+.scrollView {
+    overflow-y: scroll;
+    height: 100%;
+}
+
+.centered {
+    width: 50%;
+    margin: auto;
+}
+
+.scrollContainer {
+    height: 75vh;
+}

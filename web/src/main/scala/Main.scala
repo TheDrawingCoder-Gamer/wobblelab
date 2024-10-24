@@ -206,7 +206,9 @@ object Main extends IOWebApp {
             )
           },
           div(
+            cls := "centered",
             div(
+              cls := "centered",
               button(
                 "General",
                 onClick --> {
@@ -233,9 +235,12 @@ object Main extends IOWebApp {
               )
             ),
             // ?
+            div(
+              cls := "scrollContainer",
             selectedTab.map {
               freakyPanes.apply
             }
+            )
           )
         )
       }

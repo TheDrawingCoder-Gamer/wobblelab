@@ -10,6 +10,7 @@ import scala.annotation.experimental
 import io.circe.syntax.*
 import io.circe.*
 import io.circe.Decoder.Result
+import wobblelab.util.*
 
 
 object DogRegistry {
@@ -272,7 +273,156 @@ case class Dog(personality: DogPersonality, geneProp0 : DogGene0, geneProp1: Dog
   }
 }
 object Dog {
-  lazy val randy =
+  val colorMax: Float = 1
+  val emissionMax: Float = 0.95
+  val glossMax: Float = 0.95
+  val metallicMax: Float = 0.95
+  // I think this means it is uncapped?
+  val hornSizeMin: Float = 0.5
+  val hornSizeMax: Float = 0.5
+
+  val headSizeMin: Float = 0.5
+  val headSizeMax: Float = 0.2
+
+  val headSizeCap: Float = 0.5
+
+  val headNumMin: Int = 1
+  val headNumMax: Int = 1
+
+  val headCap: Int = 10
+
+  val bodyScaleXMin: Float = 0.75
+  val bodyScaleXMax: Float = 0.75
+  val bodyScaleXCap: Float = 2
+
+  val bodyScaleYZMin: Float = 0.3
+  val bodyScaleYZMax: Float = 0.3
+  val bodyScaleYZCap: Float = 0.6
+
+  val bodyScaleZMin: Float = 0.5
+  val bodyScaleZMax: Float = 1
+  val bodyScaleZCap: Float = 2
+
+  val tailScaleMin: Float = 0.5
+  val tailScaleMax: Float = 1.75
+  val tailScaleCap: Float = 2.25
+
+  val tailNumMin: Float = 1
+  val tailNumMax: Float = 1
+  val tailNumCap: Int = 4
+
+  val wingScaleMin: Float = 0.75
+  val wingScaleMax: Float = 0.5
+
+  val wingNumberMin: Float = 1
+  val wingNumberMax: Float = 1
+  val wingNumberCap: Int = 4
+
+  // wing z??
+
+  val legGirthMin: Float = 0.55
+  val legGirthMax: Float = 1
+  val legGirthMaxPuppy: Float = 0.6
+
+  val legLengthTopMin: Float = 0.15
+  val legLengthTopMax: Float = 0.75
+  val legLengthBotMin: Float = 0.25
+  val legLengthBotMax: Float = 0.75
+
+  val stanceWidthMin: Float = 1
+  val stanceWidthMax: Float = 1
+  val minLegSeparation: Float = 0.1
+
+  val legNumberMin: Float = 1
+  val legNumberMax: Float = 2
+
+  // ???
+  val legNumberCap: Int = 6
+  val legNumberHardCap: Int = 30
+
+  val textureAlphaMin: Float = 0
+  val textureAlphaMax: Float = 1
+
+  val textureMetallicMin: Float = 0
+  val textureMetallicMax: Float = 0.75
+
+  val textureSmoothnessMin: Float = 0
+  val textureSmoothnessMax: Float = 0.75
+
+  val dogScaleGlobalMin: Float = 0.5
+  val dogScaleGlobalMax: Float = 0.5
+  val dogScaleGlobalCap: Float = 0.5
+
+  val snoutModRotYMin: Float = 95
+  val snoutModRotYMax: Float = 65
+
+  val snoutModLenMin: Float = 0.25
+  val snoutModLenMax: Float = 0.5
+
+  val snoutModScaleMin: Float = 0.5
+  val snoutModScaleMax: Float = 1
+  
+  trait Material {
+    val base: util.ColorF
+    val emission: util.ColorF
+    val glossiness: Float
+    val metallic: Float
+
+    def minBaseR: Float = base.r
+    def maxBaseR: Float = Math.max(colorMax - base.r, 0f)
+    def minBaseG: Float = base.g
+    def maxBaseG: Float = Math.max(colorMax - base.g, 0f)
+    def minBaseB: Float = base.b
+    def maxBaseB: Float = Math.max(colorMax - base.b, 0f)
+
+    def minEmissionR: Float = emission.r
+    def maxEmissionR: Float = Math.max(emissionMax - emission.r, 0f)
+    def minEmissionG: Float = emission.g
+    def maxEmissionG: Float = Math.max(emissionMax - emission.g, 0f)
+    def minEmissionB: Float = emission.b
+    def maxEmissionB: Float = Math.max(emissionMax - emission.b, 0f)
+
+    def minGlossiness: Float = glossiness
+    def maxGlossiness: Float = Math.max(glossMax - glossiness, 0f)
+
+    def minMetallic: Float = metallic
+    def maxMetallic: Float = Math.max(metallicMax - metallic, 0f)
+  }
+  object defaultMaterials {
+    object body extends Material {
+      override val base: util.ColorF = util.ColorF(0.9934078, 0.52205884, 1)
+      override val emission: util.ColorF = util.ColorF(0.4967039, 0.26102942, 0.5)
+      override val glossiness: Float = 0.675
+      override val metallic: Float = 0.083
+    }
+    object bodyPattern extends Material {
+      override val base: util.ColorF = util.ColorF(0.9934078, 0.52205884, 1)
+      override val emission: util.ColorF = util.ColorF(0.4967039, 0.26102942, 0.5)
+      override val glossiness: Float = 0.675
+      override val metallic: Float = 0.083
+
+      override def minMetallic: Float = textureMetallicMin
+      override def maxMetallic: Float = Math.max(textureMetallicMax - metallic, 0f)
+
+      override def minGlossiness: Float = textureSmoothnessMin
+      override def maxGlossiness: Float = Math.max(textureSmoothnessMax - glossiness, 0f)
+
+    }
+    object earsNose extends Material {
+      override val base: ColorF = ColorF(0.12941177, 0.12941177, 0.12941177)
+      override val emission: ColorF = ColorF(0, 0, 0)
+      override val glossiness: Float = 0
+      override val metallic: Float = 0
+    }
+    object legs extends Material {
+      override val base: ColorF = ColorF(0.6691177, 1, 0.98748773)
+      override val emission: ColorF = ColorF(0, 0.3965516, 0.5)
+      override val glossiness: Float = 0.675
+      override val metallic: Float = 0.083
+    }
+
+  }
+  lazy val randy: Dog =
     Dog(
       DogPersonality(),
       DogGene0(

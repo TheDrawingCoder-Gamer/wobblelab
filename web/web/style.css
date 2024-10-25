@@ -1,3 +1,16 @@
+:root {
+    --main-bg-color: #74d4e8;
+    --input-border-color: #62e2fc;
+    --input-bg-color: #92eafc;
+    --tab-border-color: #27acc6;
+    --tab-selected-border-color: #f26afc;
+    --tab-selected-bg-color: #f2aaf7;
+    font-family: "Noto Sans", sans-serif;
+}
+
+body {
+    background-color: var(--main-bg-color)
+}
 .scrollView {
     overflow-y: scroll;
     height: 100%;
@@ -10,4 +23,54 @@
 
 .scrollContainer {
     height: 75vh;
+}
+
+input, select {
+    border-radius: 30vh;
+    border-color: var(--input-border-color);
+    background-color: var(--input-bg-color);
+}
+
+.tabContainer {
+    background-color: #74d4e8;
+    border-bottom-style: solid;
+    border-bottom-color: var(--tab-border-color);
+}
+.tab {
+    background-color: #92eafc;
+    border-style: solid;
+    border-bottom: none;
+    border-color: var(--tab-border-color);
+    border-radius: 10px 10px 0px 0px;
+}
+
+.tab.selected {
+    border-color: var(--tab-selected-border-color);
+    background-color: var(--tab-selected-bg-color);
+}
+
+.flexContainer {
+    display: flex;
+    flex-direction: column;
+}
+
+.flexContainer > :not(.scrollView):not(.nonScrollable) {
+    flex-shrink: 0;
+}
+.flexContainer > .scrollView, .nonScrollable {
+    flex-grow: 1;
+}
+
+.nonScrollable {
+    overflow: hidden;
+}
+
+.rootContainer {
+    height: calc(100vh - 16px);
+    overflow: hidden;
+}
+
+.personalityLine {
+    margin-top: 4px;
+    margin-bottom: 4px;
 }

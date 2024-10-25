@@ -1,6 +1,6 @@
 import scala.annotation.experimental
 import calico.*
-import calico.html.Modifier
+import calico.html.{Children, Modifier}
 import fs2.dom.*
 import calico.html.io.{*, given}
 import cats.effect.*
@@ -11,7 +11,8 @@ import fs2.concurrent.*
 import macros.imapCopied
 import net.bulbyvr.wobblelab.db.MasterDogGene
 import org.scalajs.dom
-import scala.compiletime.{constValue, codeOf, summonInline, erasedValue, error}
+
+import scala.compiletime.{codeOf, constValue, erasedValue, error, summonInline}
 import scala.deriving.Mirror
 
 
@@ -128,6 +129,7 @@ object Main extends IOWebApp {
         children <-- masterGene.map { gene =>
           gene.domRecGenes.zipWithIndex.map { (it, idx) =>
             div(
+              p(s"Gene ${idx + 1}"),
             select.withSelf { self => (
               option(value := "Dom", "Dom " + it.shared.dom.displayName),
               option(value := "Het", "Het " + it.shared.het.displayName),
@@ -147,6 +149,7 @@ object Main extends IOWebApp {
     val cases = summonSingletonCases[mirror.MirroredElemTypes, T](constValue[mirror.MirroredLabel])
     val caseOf = cases.toVector
     div(
+      cls := "personalityLine",
       name,
       select.withSelf {self =>
         (
@@ -178,7 +181,20 @@ object Main extends IOWebApp {
       personalityBinder[LoudnessPersonality](loudnessPersonality, "Loudness: ")
     )
   }
-
+  def tab(selectedTab: SignallingRef[IO, Int], name: String, id: Int): Resource[IO, HtmlElement[IO]] = {
+    button(
+      cls <-- selectedTab.map(it => if (it == id) List("tab", "selected") else List("tab")),
+      name,
+      onClick --> {
+        _.foreach(_ => selectedTab.set(id))
+      }
+    )
+  }
+  def tabs(selectedTab: SignallingRef[IO, Int])(names: String*): List[Resource[IO, HtmlElement[IO]]] = {
+    names.zipWithIndex.toList.map { (name, idx) =>
+      tab(selectedTab, name, idx)
+    }
+  }
   def render: Resource[IO, HtmlElement[IO]] = {
     for {
       blawg <- SignallingRef[IO].of(Dog.randy.asRawDog.toGameDog).toResource
@@ -192,6 +208,7 @@ object Main extends IOWebApp {
         )
       res <- {
         div(
+          cls := "rootContainer flexContainer",
           "dog code",
           textArea.withSelf { self =>
             (
@@ -206,41 +223,16 @@ object Main extends IOWebApp {
             )
           },
           div(
-            cls := "centered",
+            cls := "notebook flexContainer nonScrollable",
             div(
-              cls := "centered",
-              button(
-                "General",
-                onClick --> {
-                  _.foreach(_ => selectedTab.set(0))
-                }
-              ),
-              button(
-                "Standard Genes",
-                onClick --> {
-                  _.foreach(_ => selectedTab.set(1))
-                }
-              ),
-              button(
-                "Dom Rec Gene",
-                onClick --> {
-                  _.foreach(_ =>  selectedTab.set(2))
-                }
-              ),
-              button(
-                "Personality",
-                onClick --> {
-                  _.foreach(_ => selectedTab.set(3))
-                }
-              )
+              cls := "tabContainer",
+              tabs(selectedTab)("General", "Standard Genes", "Dom Rec Genes", "Personality")
             ),
             // ?
-            div(
-              cls := "scrollContainer",
             selectedTab.map {
-              freakyPanes.apply
+               freakyPanes.apply
             }
-            )
+
           )
         )
       }

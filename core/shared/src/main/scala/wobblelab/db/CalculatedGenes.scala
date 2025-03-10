@@ -28,15 +28,10 @@ case class CalculatedGenes(
                           // TODO: voice
                           // TODO: ear curl, ear mod a
                           earType: EarType,
-                          /* TODO: Eye type and mouth type
-                           ARE done via code, but they aren't
-                           named _in the code_. have to find localization
-                           strings (or experiment with it )
-                           */
-                          // eyeType: EyeType,
+                          eyeType: EyeType,
                           hornType: HornType,
                           hornPlacement: HornPlacement,
-                          // mouthType: MouthType,
+                          mouthType: MouthType,
                           // TODO: nose mod a
                           noseType: NoseType,
                           tailType: TailType,

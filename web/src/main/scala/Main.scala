@@ -33,12 +33,14 @@ object Main extends IOWebApp {
   def resultPane(dog: SignallingRef[IO, GameDog]): Resource[IO, HtmlElement[IO]] = {
     val calculatedSignal = dog.map(_.masterGene.calculateGenes())
     div(
-      p("Horn type: ", calculatedSignal.map(_.hornType.toString)),
+      p("Horn type: ", calculatedSignal.map(_.hornType.display)),
       p("Horn placement: ", calculatedSignal.map(_.hornPlacement.display)),
-      p("Ear type: ", calculatedSignal.map(_.earType.toString)),
-      p("Nose type: ", calculatedSignal.map(_.noseType.toString)),
-      p("Tail type: ", calculatedSignal.map(_.tailType.toString)),
-      p("Wing type: ", calculatedSignal.map(_.wingType.toString)),
+      p("Ear type: ", calculatedSignal.map(_.earType.display)),
+      p("Nose type: ", calculatedSignal.map(_.noseType.display)),
+      p("Tail type: ", calculatedSignal.map(_.tailType.display)),
+      p("Wing type: ", calculatedSignal.map(_.wingType.display)),
+      p("Eye type: ", calculatedSignal.map(_.eyeType.displayName)),
+      p("Mouth type: ", calculatedSignal.map(_.mouthType.displayName)),
       p("Front leg pairs: ", calculatedSignal.map(_.frontLegPairs.toString)),
       p("Back leg pairs: ", calculatedSignal.map(_.backLegPairs.toString)),
       p("Wing number: ", calculatedSignal.map(_.wingNumber.toString)),
@@ -244,7 +246,7 @@ object Main extends IOWebApp {
             cls := "notebook flexContainer nonScrollable",
             div(
               cls := "tabContainer",
-              tabs(selectedTab)("General", "Standard Genes", "Dom Rec Genes", "Personality", "results")
+              tabs(selectedTab)("General", "Standard Genes", "Dom Rec Genes", "Personality", "Results")
             ),
             // ?
             selectedTab.map {

@@ -220,9 +220,7 @@ case class MasterDogGene
     val hornPlacement = {
       val centerHorn = this.domRecPropertyStatus(DomRecGeneProperty.HornsCenter)
       val traditionalHorns = this.domRecPropertyStatus(DomRecGeneProperty.HornsTraditional)
-      if (centerHorn && traditionalHorns)
-        HornPlacement.HornPlacementAll
-      else if (centerHorn)
+      if (centerHorn)
         HornPlacement.HornPlacementCenter
       else if (traditionalHorns)
         HornPlacement.HornPlacementTraditional
@@ -313,17 +311,119 @@ case class MasterDogGene
     val wingNumber =
       this.getDynamicSeparatedIntFromGene(GeneticProperty.WingNumber, Dog.wingNumberMin, Dog.wingNumberMax).get
     
+    val eyeType = {
+      val eyelids = this.domRecPropertyStatus(DomRecGeneProperty.Eyelids)
+      val oblongEyes = this.domRecPropertyStatus(DomRecGeneProperty.OblongEyes)
+      val smallPupils = this.domRecPropertyStatus(DomRecGeneProperty.SmallPupils)
+      val multiPupils = this.domRecPropertyStatus(DomRecGeneProperty.MultiPupils)
+      val geometricEyes = this.domRecPropertyStatus(DomRecGeneProperty.GeometricEyes)
+      val decorativeEyes = this.domRecPropertyStatus(DomRecGeneProperty.DecorativeEyes)
+      val lashesEyes = this.domRecPropertyStatus(DomRecGeneProperty.LashesEyes)
+      val longEyes = this.domRecPropertyStatus(DomRecGeneProperty.LongEyes)
+      val missingPupilEyes = this.domRecPropertyStatus(DomRecGeneProperty.MissingPupilEyes)
+      val horizontalEyes = this.domRecPropertyStatus(DomRecGeneProperty.HorizontalEyes)
+      val spiralEyes = this.domRecPropertyStatus(DomRecGeneProperty.SpiralEyes)
+      val triangleEyes = this.domRecPropertyStatus(DomRecGeneProperty.TriangleEyes)
+      if (oblongEyes && multiPupils) {
+        EyeType.Double
+      } else if (smallPupils && multiPupils) {
+        EyeType.Spider
+      } else if (geometricEyes && spiralEyes) {
+        EyeType.Hex
+      } else if (horizontalEyes && longEyes) {
+        EyeType.Slim
+      } else if (horizontalEyes && oblongEyes)
+        EyeType.Puck
+      else if (missingPupilEyes && multiPupils)
+        EyeType.Mitosis
+      else if (eyelids)
+        EyeType.Lidded
+      else if (oblongEyes)
+        EyeType.Oblong
+      else if (smallPupils)
+        EyeType.Concerned
+      else if (triangleEyes)
+        EyeType.Triangle
+      else if (geometricEyes)
+        EyeType.Square
+      else if (lashesEyes)
+        EyeType.Lashes
+      else if (spiralEyes)
+        EyeType.Spiral
+      else if (missingPupilEyes)
+        EyeType.Pupilless
+      else if (decorativeEyes)
+        EyeType.Keyhole
+      else
+        EyeType.Standard
+    }
+
+    val mouthType = {
+      val teeth = this.domRecPropertyStatus(DomRecGeneProperty.Teeth)
+      val vMouth = this.domRecPropertyStatus(DomRecGeneProperty.VMouth)
+      val mouthSmile = this.domRecPropertyStatus(DomRecGeneProperty.MouthSmile)
+      val mouthFrown = this.domRecPropertyStatus(DomRecGeneProperty.MouthFrown)
+      val mouthCheeks = this.domRecPropertyStatus(DomRecGeneProperty.MouthCheeks)
+      val mouthCutoff = this.domRecPropertyStatus(DomRecGeneProperty.MouthCutoff)
+      val mouthWiggle = this.domRecPropertyStatus(DomRecGeneProperty.MouthWiggle)
+      val openMouth = this.domRecPropertyStatus(DomRecGeneProperty.OpenMouth)
+      val mouthPointed = this.domRecPropertyStatus(DomRecGeneProperty.MouthPointed)
+      val mouthNeutral = this.domRecPropertyStatus(DomRecGeneProperty.MouthNeutral)
+      val mouthMissingTeeth = this.domRecPropertyStatus(DomRecGeneProperty.MouthMissingTeeth)
+
+      if (teeth && mouthNeutral)
+        0
+      else if (vMouth && openMouth)
+        3
+      else if (teeth && mouthPointed)
+        6
+      else if (teeth && mouthCutoff)
+        7
+      else if (teeth && mouthWiggle)
+        13
+      else if (teeth && mouthFrown)
+        4
+      else if (teeth && mouthSmile)
+        // MouthType.Smug
+        10
+      else if (mouthMissingTeeth && mouthPointed)
+        11
+      else if (mouthMissingTeeth)
+        8
+      else if (mouthNeutral && !openMouth)
+        12
+      else if (mouthCheeks)
+        5
+      else if (vMouth)
+        2
+      else if (mouthFrown)
+        9
+      else
+        1
+    }
+
+    val floatMap = mut.Map[String, Float]()
+
+
+
     CalculatedGenes(
       bodyMat = CalculatedMaterial.DEFAULT,
       legColor = CalculatedMaterial.DEFAULT,
       noseEarColor = CalculatedMaterial.DEFAULT,
-      floatItems = Map(),
+      floatItems = floatMap.toMap,
       headNumber = headNumber,
       tailNumber = tailNumber,
       wingNumber = wingNumber,
       frontLegPairs = frontLegPairs,
       backLegPairs = backLegPairs,
-      earType, hornType, hornPlacement, noseType, tailType, wingType
+      earType = earType,
+      hornType = hornType,
+      hornPlacement = hornPlacement,
+      noseType = noseType,
+      tailType = tailType,
+      wingType = wingType,
+      eyeType = eyeType,
+      mouthType = MouthType.fromOrdinal(mouthType)
     )
   }
 

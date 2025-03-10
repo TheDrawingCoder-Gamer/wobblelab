@@ -313,7 +313,7 @@ object Dog {
   val wingScaleMax: Float = 0.5
 
   val wingNumberMin: Float = 1
-  val wingNumberMax: Float = 1
+  val wingNumberMax: Float = 2
 
   // wing z??
 

@@ -1,14 +1,14 @@
 package net.bulbyvr
 package wobblelab
 
-enum NoseType {
-  case TypeA extends NoseType
-  case Bulb extends NoseType
-  case Greyhound extends NoseType
-  case HalfMallow extends NoseType
-  case Mallow extends NoseType
-  case Pug extends NoseType
-  case Square extends NoseType
-  case Triangle extends NoseType
-  case Wide extends NoseType
+enum NoseType(val display: String) {
+  case TypeA extends NoseType("Sphere")
+  case Bulb extends NoseType("Bulb")
+  case Greyhound extends NoseType("Greyhound")
+  case HalfMallow extends NoseType("Half Mallow")
+  case Mallow extends NoseType("Mallow")
+  case Pug extends NoseType("Pug")
+  case Square extends NoseType("Square")
+  case Triangle extends NoseType("Triangle")
+  case Wide extends NoseType("Wide")
 }

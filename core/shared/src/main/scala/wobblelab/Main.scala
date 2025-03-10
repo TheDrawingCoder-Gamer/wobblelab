@@ -305,18 +305,15 @@ object Dog {
 
   val tailScaleMin: Float = 0.5
   val tailScaleMax: Float = 1.75
-  val tailScaleCap: Float = 2.25
 
   val tailNumMin: Float = 1
   val tailNumMax: Float = 1
-  val tailNumCap: Int = 4
 
   val wingScaleMin: Float = 0.75
   val wingScaleMax: Float = 0.5
 
   val wingNumberMin: Float = 1
   val wingNumberMax: Float = 1
-  val wingNumberCap: Int = 4
 
   // wing z??
 
@@ -335,6 +332,7 @@ object Dog {
 
   val legNumberMin: Float = 1
   val legNumberMax: Float = 2
+  val legNumberIncreaseRate: Float = 0.975f
 
   // ???
   val legNumberCap: Int = 6
@@ -361,7 +359,64 @@ object Dog {
 
   val snoutModScaleMin: Float = 0.5
   val snoutModScaleMax: Float = 1
+
+  object earModInfo {
+    sealed trait MinMax {
+      val min: Float
+      val max: Float
+    }
+
+    object TypeA  extends MinMax {
+      val min = 0.4
+      val max = 0.3
+    }
+
+    object TypeB extends MinMax {
+      val min = 0.8
+      val max = 0.5
+    }
+
+    object Bent extends MinMax {
+      val min = 0.2
+      val max = 0.2
+    }
+
+    object Cross extends MinMax {
+      val min = 0.15
+      val max = 0.225
+    }
+
+    object Twisted extends MinMax {
+      val min = 0.15
+      val max = 0.225
+    }
+
+    object Wavy extends MinMax {
+      val min = 0.2
+      val max = 0.225
+    }
+
+    object NotAffected extends MinMax {
+      val min = 0
+      val max = 0
+    }
+  }
+
+  def earModA(earType: EarType): earModInfo.MinMax = {
+    earType match {
+      case EarType.TypeA => earModInfo.TypeA
+      case EarType.TypeB => earModInfo.TypeB
+      case EarType.Bent => earModInfo.Bent
+      case EarType.Cross => earModInfo.Cross
+      case EarType.Twisted => earModInfo.Twisted
+      case EarType.Wavy => earModInfo.Wavy
+      case _ => earModInfo.NotAffected
+    }
+  }
   
+  val noseSizeMin: Float = 0.7
+  val noseSizeMax: Float = 0.6
+
   trait Material {
     val base: util.ColorF
     val emission: util.ColorF

@@ -29,6 +29,23 @@ object Main extends IOWebApp {
           case m: Mirror.Singleton => m.fromProduct(EmptyTuple).asInstanceOf[A] :: summonSingletonCases[t, A](typeName)
           case m: Mirror =>
             error("Enum " + codeOf(typeName) + " contains non singleton case " + codeOf(constValue[m.MirroredLabel]))
+
+  def resultPane(dog: SignallingRef[IO, GameDog]): Resource[IO, HtmlElement[IO]] = {
+    val calculatedSignal = dog.map(_.masterGene.calculateGenes())
+    div(
+      p("Horn type: ", calculatedSignal.map(_.hornType.toString)),
+      p("Horn placement: ", calculatedSignal.map(_.hornPlacement.display)),
+      p("Ear type: ", calculatedSignal.map(_.earType.toString)),
+      p("Nose type: ", calculatedSignal.map(_.noseType.toString)),
+      p("Tail type: ", calculatedSignal.map(_.tailType.toString)),
+      p("Wing type: ", calculatedSignal.map(_.wingType.toString)),
+      p("Front leg pairs: ", calculatedSignal.map(_.frontLegPairs.toString)),
+      p("Back leg pairs: ", calculatedSignal.map(_.backLegPairs.toString)),
+      p("Wing number: ", calculatedSignal.map(_.wingNumber.toString)),
+      p("Tail number: ", calculatedSignal.map(_.tailNumber.toString)),
+      p("Head number: ", calculatedSignal.map(_.headNumber.toString))
+    )
+  }
   def generalPane(dog: SignallingRef[IO, GameDog]): Resource[IO,HtmlElement[IO]] = {
     val ageSignal = dog.imapCopied[DogAge]("age")
     val ageProgress = dog.imapCopied[Float]("ageProgress")
@@ -204,7 +221,8 @@ object Main extends IOWebApp {
           generalPane(blawg),
           standardGenePane(blawg),
           domRecPane(blawg),
-          personalityPane(blawg)
+          personalityPane(blawg),
+          resultPane(blawg)
         )
       res <- {
         div(
@@ -226,7 +244,7 @@ object Main extends IOWebApp {
             cls := "notebook flexContainer nonScrollable",
             div(
               cls := "tabContainer",
-              tabs(selectedTab)("General", "Standard Genes", "Dom Rec Genes", "Personality")
+              tabs(selectedTab)("General", "Standard Genes", "Dom Rec Genes", "Personality", "results")
             ),
             // ?
             selectedTab.map {

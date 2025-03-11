@@ -42,7 +42,7 @@ jobs:
         # Automatically uploads an artifact from the './_site' directory by default
         uses: actions/upload-pages-artifact@v3
         with:
-          path: website/target/docs/site
+          path: website/target/webpage
   deploy:
     environment:
       name: github-pages

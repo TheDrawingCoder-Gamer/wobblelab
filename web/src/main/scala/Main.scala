@@ -9,8 +9,9 @@ import cats.effect.syntax.all.*
 import fs2.*
 import fs2.concurrent.*
 import macros.imapCopied
-import net.bulbyvr.wobblelab.db.MasterDogGene
+import net.bulbyvr.wobblelab.db.{MasterDogGene, TraitType}
 import org.scalajs.dom
+import dom.console
 
 import scala.compiletime.{codeOf, constValue, erasedValue, error, summonInline}
 import scala.deriving.Mirror
@@ -155,7 +156,7 @@ object Main extends IOWebApp {
               option(value := "Sub", "Sub " + it.shared.sub.displayName),
               value := it.value.toString,
               onChange --> {
-                _.evalMap(_ => self.value.get).foreach(v => masterGene.set(gene.copy(domRecGenes = gene.domRecGenes.updated(idx, it.copy(value = db.TraitType.valueOf(v))))))
+                _.evalMap(_ => self.value.get).foreach(v => masterGene.set(gene.updateDomRec(idx, TraitType.valueOf(v))))
               }
             )}
             )
@@ -217,6 +218,7 @@ object Main extends IOWebApp {
   def render: Resource[IO, HtmlElement[IO]] = {
     for {
       blawg <- SignallingRef[IO].of(Dog.randy.asRawDog.toGameDog).toResource
+      _ <- blawg.discrete.evalTap(it => IO.delay { console.log(it.masterGene.calculateGenes()) }).compile.drain.background
       selectedTab <- SignallingRef[IO].of(0).toResource
       freakyPanes =
         Vector(

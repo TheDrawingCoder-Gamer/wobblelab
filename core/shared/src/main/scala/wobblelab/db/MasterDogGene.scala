@@ -15,7 +15,6 @@ case class RawGene(
 
 case class MasterDogGene
   ( randomSeed: String,
-    geneValues: Map[GeneticProperty, DogGene],
     geneticHolders: Map[GeneticProperty, DogGeneHolder],
     domRecGenes: List[DomRecGene],
     domRecPropertyStatus: Map[DomRecGeneProperty, Boolean]
@@ -98,6 +97,13 @@ case class MasterDogGene
       case _ => None
     }.getOrElse(0f)
   }
+  
+  def updateDomRec(idx: Int, kind: TraitType): MasterDogGene =
+    val old = this.domRecGenes(idx)
+    val daNew = old.copy(value = kind)
+    val newList = this.domRecGenes.updated(idx, daNew)
+    val newMap = this.domRecPropertyStatus.updated(old.currentProperty, false).updated(daNew.currentProperty, true)
+    this.copy(domRecGenes = newList, domRecPropertyStatus = newMap)
 
   def calculateGenes(): CalculatedGenes = {
     def calculatePlusMinus(key: String, minVal: Float, maxVal: Float, isSuper: Boolean = true): Float = {
@@ -310,7 +316,7 @@ case class MasterDogGene
       
     val wingNumber =
       this.getDynamicSeparatedIntFromGene(GeneticProperty.WingNumber, Dog.wingNumberMin, Dog.wingNumberMax).get
-    
+
     val eyeType = {
       val eyelids = this.domRecPropertyStatus(DomRecGeneProperty.Eyelids)
       val oblongEyes = this.domRecPropertyStatus(DomRecGeneProperty.OblongEyes)
@@ -483,7 +489,7 @@ object MasterDogGene {
     val randomSeed = dogGene.substring(0, randomSeedSize)
     var currentSuperIndex = 0
     var currentStandardIndex = randomSeedSize
-    val geneValues = mut.Map[GeneticProperty, DogGene]()
+    // val geneValues = mut.Map[GeneticProperty, DogGene]()
     val geneticHolders = mut.Map[GeneticProperty, DogGeneHolder]()
     val domRecPropertyStatus = mut.Map[DomRecGeneProperty, Boolean]()
     val domRecGenes = domRecGene.grouped(2).zip(GenesDb.genesDb.domRecGenes).map { (it, domRecGene) =>
@@ -570,7 +576,7 @@ object MasterDogGene {
           }
         }
     }
-    MasterDogGene(dogGene.substring(0, randomSeedSize), geneValues.toMap, geneticHolders.toMap, domRecGenes, domRecPropertyStatus.toMap)
+    MasterDogGene(dogGene.substring(0, randomSeedSize), geneticHolders.toMap, domRecGenes, domRecPropertyStatus.toMap)
   }
 
   private def generateBaseGeneOfSize(size: Int, addSeperator: Boolean = true): String = {

@@ -218,7 +218,7 @@ object Main extends IOWebApp {
   def render: Resource[IO, HtmlElement[IO]] = {
     for {
       blawg <- SignallingRef[IO].of(Dog.randy.asRawDog.toGameDog).toResource
-      _ <- blawg.discrete.evalTap(it => IO.delay { console.log(it.masterGene.calculateGenes()) }).compile.drain.background
+      // _ <- blawg.discrete.evalTap(it => IO.delay { console.log(it.masterGene.calculateGenes()) }).compile.drain.background
       selectedTab <- SignallingRef[IO].of(0).toResource
       freakyPanes =
         Vector(

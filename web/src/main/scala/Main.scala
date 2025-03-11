@@ -9,8 +9,9 @@ import cats.effect.syntax.all.*
 import fs2.*
 import fs2.concurrent.*
 import macros.imapCopied
-import net.bulbyvr.wobblelab.db.MasterDogGene
+import net.bulbyvr.wobblelab.db.{MasterDogGene, TraitType}
 import org.scalajs.dom
+import dom.console
 
 import scala.compiletime.{codeOf, constValue, erasedValue, error, summonInline}
 import scala.deriving.Mirror
@@ -29,6 +30,25 @@ object Main extends IOWebApp {
           case m: Mirror.Singleton => m.fromProduct(EmptyTuple).asInstanceOf[A] :: summonSingletonCases[t, A](typeName)
           case m: Mirror =>
             error("Enum " + codeOf(typeName) + " contains non singleton case " + codeOf(constValue[m.MirroredLabel]))
+
+  def resultPane(dog: SignallingRef[IO, GameDog]): Resource[IO, HtmlElement[IO]] = {
+    val calculatedSignal = dog.map(_.masterGene.calculateGenes())
+    div(
+      p("Horn type: ", calculatedSignal.map(_.hornType.display)),
+      p("Horn placement: ", calculatedSignal.map(_.hornPlacement.display)),
+      p("Ear type: ", calculatedSignal.map(_.earType.display)),
+      p("Nose type: ", calculatedSignal.map(_.noseType.display)),
+      p("Tail type: ", calculatedSignal.map(_.tailType.display)),
+      p("Wing type: ", calculatedSignal.map(_.wingType.display)),
+      p("Eye type: ", calculatedSignal.map(_.eyeType.displayName)),
+      p("Mouth type: ", calculatedSignal.map(_.mouthType.displayName)),
+      p("Front leg pairs: ", calculatedSignal.map(_.frontLegPairs.toString)),
+      p("Back leg pairs: ", calculatedSignal.map(_.backLegPairs.toString)),
+      p("Wing number: ", calculatedSignal.map(_.wingNumber.toString)),
+      p("Tail number: ", calculatedSignal.map(_.tailNumber.toString)),
+      p("Head number: ", calculatedSignal.map(_.headNumber.toString))
+    )
+  }
   def generalPane(dog: SignallingRef[IO, GameDog]): Resource[IO,HtmlElement[IO]] = {
     val ageSignal = dog.imapCopied[DogAge]("age")
     val ageProgress = dog.imapCopied[Float]("ageProgress")
@@ -136,7 +156,7 @@ object Main extends IOWebApp {
               option(value := "Sub", "Sub " + it.shared.sub.displayName),
               value := it.value.toString,
               onChange --> {
-                _.evalMap(_ => self.value.get).foreach(v => masterGene.set(gene.copy(domRecGenes = gene.domRecGenes.updated(idx, it.copy(value = db.TraitType.valueOf(v))))))
+                _.evalMap(_ => self.value.get).foreach(v => masterGene.set(gene.updateDomRec(idx, TraitType.valueOf(v))))
               }
             )}
             )
@@ -198,13 +218,15 @@ object Main extends IOWebApp {
   def render: Resource[IO, HtmlElement[IO]] = {
     for {
       blawg <- SignallingRef[IO].of(Dog.randy.asRawDog.toGameDog).toResource
+      // _ <- blawg.discrete.evalTap(it => IO.delay { console.log(it.masterGene.calculateGenes()) }).compile.drain.background
       selectedTab <- SignallingRef[IO].of(0).toResource
       freakyPanes =
         Vector(
           generalPane(blawg),
           standardGenePane(blawg),
           domRecPane(blawg),
-          personalityPane(blawg)
+          personalityPane(blawg),
+          resultPane(blawg)
         )
       res <- {
         div(
@@ -226,7 +248,7 @@ object Main extends IOWebApp {
             cls := "notebook flexContainer nonScrollable",
             div(
               cls := "tabContainer",
-              tabs(selectedTab)("General", "Standard Genes", "Dom Rec Genes", "Personality")
+              tabs(selectedTab)("General", "Standard Genes", "Dom Rec Genes", "Personality", "Results")
             ),
             // ?
             selectedTab.map {

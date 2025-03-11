@@ -1,5 +1,6 @@
 package net.bulbyvr
-package wobblelab.db
+package wobblelab
+package db
 
 import io.circe.syntax.*
 import io.circe.*

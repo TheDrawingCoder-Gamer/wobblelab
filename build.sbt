@@ -114,7 +114,7 @@ lazy val web = project
     version := "0.1.0-SNAPSHOT",
 
     scalaVersion := scala3Version,
-    libraryDependencies += "com.armanbilge" %%% "calico"% "0.2.2-95-60c8853-SNAPSHOT",
+    libraryDependencies += "com.armanbilge" %%% "calico"% "0.2.3",
     libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "2.4.0",
     scalaJSUseMainModuleInitializer := true,
     webTarget := new File((Compile / target).value, "webpage"),

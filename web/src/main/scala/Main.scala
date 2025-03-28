@@ -34,51 +34,57 @@ object Main extends IOWebApp {
   def resultPane(dog: SignallingRef[IO, GameDog]): Resource[IO, HtmlElement[IO]] = {
     val calculatedSignal = dog.map(_.masterGene.calculateGenes())
     div(
-      p("Horn type: ", calculatedSignal.map(_.hornType.display)),
-      p("Horn placement: ", calculatedSignal.map(_.hornPlacement.display)),
-      p("Ear type: ", calculatedSignal.map(_.earType.display)),
-      p("Nose type: ", calculatedSignal.map(_.noseType.display)),
-      p("Tail type: ", calculatedSignal.map(_.tailType.display)),
-      p("Wing type: ", calculatedSignal.map(_.wingType.display)),
-      p("Eye type: ", calculatedSignal.map(_.eyeType.displayName)),
-      p("Mouth type: ", calculatedSignal.map(_.mouthType.displayName)),
-      p("Front leg pairs: ", calculatedSignal.map(_.frontLegPairs.toString)),
-      p("Back leg pairs: ", calculatedSignal.map(_.backLegPairs.toString)),
-      p("Wing number: ", calculatedSignal.map(_.wingNumber.toString)),
-      p("Tail number: ", calculatedSignal.map(_.tailNumber.toString)),
-      p("Head number: ", calculatedSignal.map(_.headNumber.toString))
+      cls := "scrollView",
+      div(
+        p("Horn type: ", calculatedSignal.map(_.hornType.display)),
+        p("Horn placement: ", calculatedSignal.map(_.hornPlacement.display)),
+        p("Ear type: ", calculatedSignal.map(_.earType.display)),
+        p("Nose type: ", calculatedSignal.map(_.noseType.display)),
+        p("Tail type: ", calculatedSignal.map(_.tailType.display)),
+        p("Wing type: ", calculatedSignal.map(_.wingType.display)),
+        p("Eye type: ", calculatedSignal.map(_.eyeType.displayName)),
+        p("Mouth type: ", calculatedSignal.map(_.mouthType.displayName)),
+        p("Front leg pairs: ", calculatedSignal.map(_.frontLegPairs.toString)),
+        p("Back leg pairs: ", calculatedSignal.map(_.backLegPairs.toString)),
+        p("Wing number: ", calculatedSignal.map(_.wingNumber.toString)),
+        p("Tail number: ", calculatedSignal.map(_.tailNumber.toString)),
+        p("Head number: ", calculatedSignal.map(_.headNumber.toString))
+      )
     )
   }
   def generalPane(dog: SignallingRef[IO, GameDog]): Resource[IO,HtmlElement[IO]] = {
     val ageSignal = dog.imapCopied[DogAge]("age")
     val ageProgress = dog.imapCopied[Float]("ageProgress")
     div(
-      strCompTextbox("Name:", dog.imapCopied("dogName")),
-      p(
-        "Age:",
-        select.withSelf { self =>
-          (
-            DogAge.values.filter(_ != DogAge.Empty).map(it => option(value := it.ordinal.toString, it.toString)).toList,
-            onChange --> {
-              _.evalMap(_ => self.value.get).map(DogAge.parseString).foreach(ageSignal.set)
-            },
-            value <-- ageSignal.map(_.ordinal.toString)
-          )
-        }
-      ),
-      p(
-        "Age Progress:",
-        input.withSelf { self =>
-          (
-            tpe := "text",
-            onChange --> {
-              _.evalMap(_ => self.value.get).foreach(_.toFloatOption.map(it => ageProgress.set(it)).getOrElse(IO.pure(())))
-            },
-            value <-- ageProgress.map(_.toString)
-          )
-        }
-      ),
-      strCompTextbox("Random Seed:", SignallingRef.lens[IO, GameDog, String](dog)(_.masterGene.randomSeed, src => it => src.copy(masterGene = src.masterGene.copy(randomSeed = it))))
+      cls := "scrollView",
+      div(
+        strCompTextbox("Name:", dog.imapCopied("dogName")),
+        p(
+          "Age:",
+          select.withSelf { self =>
+            (
+              DogAge.values.filter(_ != DogAge.Empty).map(it => option(value := it.ordinal.toString, it.toString)).toList,
+              onChange --> {
+                _.evalMap(_ => self.value.get).map(DogAge.parseString).foreach(ageSignal.set)
+              },
+              value <-- ageSignal.map(_.ordinal.toString)
+            )
+          }
+        ),
+        p(
+          "Age Progress:",
+          input.withSelf { self =>
+            (
+              tpe := "text",
+              onChange --> {
+                _.evalMap(_ => self.value.get).foreach(_.toFloatOption.map(it => ageProgress.set(it)).getOrElse(IO.pure(())))
+              },
+              value <-- ageProgress.map(_.toString)
+            )
+          }
+        ),
+        strCompTextbox("Random Seed:", SignallingRef.lens[IO, GameDog, String](dog)(_.masterGene.randomSeed, src => it => src.copy(masterGene = src.masterGene.copy(randomSeed = it))))
+      )
     )
   }
   def dualGeneGroup(name: String, dualGene: SignallingRef[IO, DualGene]): Resource[IO, HtmlElement[IO]] = {
@@ -192,6 +198,8 @@ object Main extends IOWebApp {
     val pettablePersonality = personality.imapCopied[PettablePersonality]("pettable")
     val loudnessPersonality = personality.imapCopied[LoudnessPersonality]("loudness")
     div(
+      cls := "scrollView",
+    div(
       personalityBinder[SocialPersonality](socialPersonality, "Social: "),
       personalityBinder[EnergyPersonality](energyPersonality, "Energy: "),
       personalityBinder[FoodPersonality](foodPersonality, "Food: "),
@@ -199,6 +207,7 @@ object Main extends IOWebApp {
       personalityBinder[NicenessPersonality](nicenessPersonality, "Niceness: "),
       personalityBinder[PettablePersonality](pettablePersonality, "Pettable: "),
       personalityBinder[LoudnessPersonality](loudnessPersonality, "Loudness: ")
+    )
     )
   }
   def tab(selectedTab: SignallingRef[IO, Int], name: String, id: Int): Resource[IO, HtmlElement[IO]] = {

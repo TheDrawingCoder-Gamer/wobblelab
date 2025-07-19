@@ -5,6 +5,7 @@ package db
 
 
 import net.bulbyvr.wobblelab.db.MasterDogGene.{minusString, randomSeedSize, separatorSymbol}
+import net.bulbyvr.wobblelab.util.ColorF
 
 import scala.collection.mutable as mut
 
@@ -410,12 +411,29 @@ case class MasterDogGene
 
     val floatMap = mut.Map[String, Float]()
 
-
+    
+    def matFromDefault(default: Dog.Material, name: String): CalculatedMaterial =
+      import default.*
+      val metallic = minMetallic + calculatePlusMinus(name + "Metallic", minMetallic, maxMetallic, isSuper = false)
+      val glossiness = minGlossiness + calculatePlusMinus(name + "Gloss", minGlossiness, maxGlossiness, isSuper = false)
+      val baseR = minBaseR + calculatePlusMinus(name + "ColorR", minBaseR, maxBaseR, isSuper = false)
+      val baseG = minBaseG + calculatePlusMinus(name + "ColorG", minBaseG, maxBaseG, isSuper = false)
+      val baseB = minBaseB + calculatePlusMinus(name + "ColorB", minBaseB, maxBaseB, isSuper = false)
+      val base = ColorF(baseR, baseG, baseB)
+      val emiR = minEmissionR + calculatePlusMinus(name + "EmissionColorR", minEmissionR, maxEmissionR, isSuper = false)
+      val emiG = minEmissionG + calculatePlusMinus(name + "EmissionColorG", minEmissionG, maxEmissionG, isSuper = false)
+      val emiB = minEmissionB + calculatePlusMinus(name + "EmissionColorB", minEmissionB, maxEmissionB, isSuper = false)
+      val emission = ColorF(emiR, emiG, emiB)
+      CalculatedMaterial(base, emission, metallic, glossiness)
+    
+    val bodyMat = matFromDefault(Dog.defaultMaterials.body, "Body")
+    val legMat = matFromDefault(Dog.defaultMaterials.legs, "Leg")
+    val noseEarMat = matFromDefault(Dog.defaultMaterials.earsNose, "NoseEar")
 
     CalculatedGenes(
-      bodyMat = CalculatedMaterial.DEFAULT,
-      legColor = CalculatedMaterial.DEFAULT,
-      noseEarColor = CalculatedMaterial.DEFAULT,
+      bodyMat = bodyMat,
+      legColor = legMat,
+      noseEarColor = noseEarMat,
       floatItems = floatMap.toMap,
       headNumber = headNumber,
       tailNumber = tailNumber,

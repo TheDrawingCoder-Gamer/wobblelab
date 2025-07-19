@@ -9,7 +9,7 @@ import cats.effect.syntax.all.*
 import fs2.*
 import fs2.concurrent.*
 import macros.imapCopied
-import net.bulbyvr.wobblelab.db.{MasterDogGene, TraitType}
+import net.bulbyvr.wobblelab.db.{CalculatedMaterial, MasterDogGene, TraitType}
 import org.scalajs.dom
 import dom.console
 
@@ -31,6 +31,14 @@ object Main extends IOWebApp {
           case m: Mirror =>
             error("Enum " + codeOf(typeName) + " contains non singleton case " + codeOf(constValue[m.MirroredLabel]))
 
+  def matSection(mat: Signal[IO, CalculatedMaterial], name: String): Resource[IO, HtmlElement[IO]] =
+    div(
+      p(name + " color: ", mat.map(_.base.toString), "  ", mat.map(it => span("Color", styleAttr := s"background-color: ${it.base.toString};"))),
+      p(name + " emission color: ", mat.map(_.emission.toString), "  ", mat.map(it => span("Color", styleAttr := s"background-color: ${it.emission.toString};"))),
+      p(name + " metallic: ", mat.map(it => (it.metallic * 100).toString)),
+      p(name + " glossiness: ", mat.map(it => (it.glossiness * 100).toString))
+    )
+
   def resultPane(dog: SignallingRef[IO, GameDog]): Resource[IO, HtmlElement[IO]] = {
     val calculatedSignal = dog.map(_.masterGene.calculateGenes())
     div(
@@ -48,7 +56,11 @@ object Main extends IOWebApp {
         p("Back leg pairs: ", calculatedSignal.map(_.backLegPairs.toString)),
         p("Wing number: ", calculatedSignal.map(_.wingNumber.toString)),
         p("Tail number: ", calculatedSignal.map(_.tailNumber.toString)),
-        p("Head number: ", calculatedSignal.map(_.headNumber.toString))
+        p("Head number: ", calculatedSignal.map(_.headNumber.toString)),
+        matSection(calculatedSignal.map(_.bodyMat), "Body"),
+        matSection(calculatedSignal.map(_.legColor), "Legs"),
+        matSection(calculatedSignal.map(_.noseEarColor), "Nose/Ear")
+
       )
     )
   }

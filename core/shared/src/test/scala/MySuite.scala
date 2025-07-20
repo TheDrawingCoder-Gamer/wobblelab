@@ -25,7 +25,7 @@ class MySuite extends munit.FunSuite {
   test ("Full I/O") {
     val rawdoggie = DogRegistry.importDog(testDog).get
     val doggie = rawdoggie.toDog.get
-    val reraweddoggie = doggie.asRawDog
+    val reraweddoggie = doggie.asRawDog.get
     assertEquals(reraweddoggie, rawdoggie)
     val outText = DogRegistry.exportDog(reraweddoggie)
     assertEquals(outText, testDog)

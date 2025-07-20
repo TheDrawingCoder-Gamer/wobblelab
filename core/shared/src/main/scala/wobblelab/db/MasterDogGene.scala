@@ -6,6 +6,7 @@ package db
 
 import net.bulbyvr.wobblelab.db.MasterDogGene.{minusString, randomSeedSize, separatorSymbol}
 import net.bulbyvr.wobblelab.util.ColorF
+import net.bulbyvr.wobblelab.DogMaterialPart
 
 import scala.collection.mutable as mut
 
@@ -28,23 +29,25 @@ case class MasterDogGene
     }
   }
 
-  def updatedGeneString(key: GeneticProperty, value: String): MasterDogGene = {
-    val newHolders = geneticHolders.updatedWith(key) {
-      case Some(holder) => {
-        Some(
-          holder match {
-            case _: DogGeneHolder.Standard=> DogGeneHolder.Standard(value)
-            case e: DogGeneHolder.Super => e.copy(geneString = value)
-            case l: DogGeneHolder.Looped => l.copy(rawGene = value)
-          }
-        )
-      }
-      case None => None
+  def updatedGeneString(key: GeneticProperty, value: String): Option[MasterDogGene] = {
+    val isValid = !key.geneType.strictLength || key.defaultLen == value.length
+    Option.when(isValid):
+      val newHolders = geneticHolders.updatedWith(key) {
+        case Some(holder) => {
+          Some(
+            holder match {
+              case _: DogGeneHolder.Standard=> DogGeneHolder.Standard(value)
+              case e: DogGeneHolder.Super => e.copy(geneString = value)
+              case l: DogGeneHolder.Looped => l.copy(rawGene = value)
+            }
+          )
+        }
+        case None => None
 
-    }
-    copy(
-      geneticHolders = newHolders
-    )
+      }
+      copy(
+        geneticHolders = newHolders
+      )
   }
   def getExpectedGeneSize(key: GeneticProperty): Int = {
     geneticHolders.get(key).flatMap {
@@ -106,14 +109,77 @@ case class MasterDogGene
     val newMap = this.domRecPropertyStatus.updated(old.currentProperty, false).updated(daNew.currentProperty, true)
     this.copy(domRecGenes = newList, domRecPropertyStatus = newMap)
 
+  def updatePartMaterial(name: DogMaterialPart, mat: CalculatedMaterial): MasterDogGene =
+    import DogMaterialPart.*
+    val default = name match
+      case Body => Dog.defaultMaterials.body
+      case Leg => Dog.defaultMaterials.legs
+      case NoseEar => Dog.defaultMaterials.earsNose
+
+    import default.*
+
+    val propMap = this.geneticHolders.to(mut.HashMap)
+
+    val daName = name.toString
+
+    def addPlusOrMinus(prop: PlusMinusGene, minVal: Float, maxVal: Float, v: Float): Unit =
+      val n = v - minVal
+      println(prop)
+      println(minVal)
+      println(n)
+      if n < 0 then
+        val minusGene = DogMath.floatToGeneSequence(math.abs(n), 0, minVal, prop.defaultLen)
+        propMap.update(prop.plus, DogGeneHolder.Standard("0".repeat(prop.defaultLen)))
+        propMap.update(prop.minus, DogGeneHolder.Standard(minusGene))
+      else
+
+        val plusGene = DogMath.floatToGeneSequence(n, 0, maxVal, prop.defaultLen)
+        propMap.update(prop.plus, DogGeneHolder.Standard(plusGene))
+        propMap.update(prop.minus, DogGeneHolder.Standard("0".repeat(prop.defaultLen)))
+
+
+    addPlusOrMinus(PlusMinusGene.values(daName + "Metallic"), minMetallic, maxMetallic, mat.metallic)
+    addPlusOrMinus(PlusMinusGene.values(daName + "Gloss"), minGlossiness, maxGlossiness, mat.glossiness)
+    addPlusOrMinus(PlusMinusGene.values(daName + "ColorR"), minBaseR, maxBaseR, mat.base.r)
+    addPlusOrMinus(PlusMinusGene.values(daName + "ColorG"), minBaseG, maxBaseG, mat.base.g)
+    addPlusOrMinus(PlusMinusGene.values(daName + "ColorB"), minBaseB, maxBaseB, mat.base.b)
+    addPlusOrMinus(PlusMinusGene.values(daName + "EmissionColorR"), minEmissionR, maxEmissionR, mat.emission.r)
+    addPlusOrMinus(PlusMinusGene.values(daName + "EmissionColorG"), minEmissionG, maxEmissionG, mat.emission.g)
+    addPlusOrMinus(PlusMinusGene.values(daName + "EmissionColorB"), minEmissionB, maxEmissionB, mat.emission.b)
+
+    copy(geneticHolders = propMap.toMap)
+
+
+  private def calculatePlusMinus(key: String, minVal: Float, maxVal: Float, isSuper: Boolean = true): Float = {
+    val prop = PlusMinusGene.values(key)
+    val plusValue = if (isSuper) getDynamicSeparatedFloatFromGene(prop.plus, 0, maxVal) else getFloatFromGene(prop.plus, 0, maxVal)
+    // minusValue is
+    val minusValue = if (isSuper) getDynamicSeparatedFloatFromGene(prop.minus, 0, minVal, true) else getFloatFromGene(prop.minus, 0, minVal)
+    plusValue.get - minusValue.get
+  }
+  def getPartMaterial(part: DogMaterialPart): CalculatedMaterial =
+    val name = part.toString
+    val default = part match
+      case DogMaterialPart.Body => Dog.defaultMaterials.body
+      case DogMaterialPart.Leg => Dog.defaultMaterials.legs
+      case DogMaterialPart.NoseEar => Dog.defaultMaterials.earsNose
+    import default.*
+    val metallic = minMetallic + calculatePlusMinus(name + "Metallic", minMetallic, maxMetallic, isSuper = false)
+    val glossiness = minGlossiness + calculatePlusMinus(name + "Gloss", minGlossiness, maxGlossiness, isSuper = false)
+    val baseR = minBaseR + calculatePlusMinus(name + "ColorR", minBaseR, maxBaseR, isSuper = false)
+    val baseG = minBaseG + calculatePlusMinus(name + "ColorG", minBaseG, maxBaseG, isSuper = false)
+    val baseB = minBaseB + calculatePlusMinus(name + "ColorB", minBaseB, maxBaseB, isSuper = false)
+    val base = ColorF(baseR, baseG, baseB)
+    val emiR = minEmissionR + calculatePlusMinus(name + "EmissionColorR", minEmissionR, maxEmissionR, isSuper = false)
+    val emiG = minEmissionG + calculatePlusMinus(name + "EmissionColorG", minEmissionG, maxEmissionG, isSuper = false)
+    val emiB = minEmissionB + calculatePlusMinus(name + "EmissionColorB", minEmissionB, maxEmissionB, isSuper = false)
+    val emission = ColorF(emiR, emiG, emiB)
+    CalculatedMaterial(base, emission, metallic, glossiness)
+
+
+
   def calculateGenes(): CalculatedGenes = {
-    def calculatePlusMinus(key: String, minVal: Float, maxVal: Float, isSuper: Boolean = true): Float = {
-      val plusProp = GeneticProperty.valueOf(key + MasterDogGene.plusString)
-      val minusProp = GeneticProperty.valueOf(key + MasterDogGene.minusString)
-      val plusValue = if (isSuper) getDynamicSeparatedFloatFromGene(plusProp, 0, maxVal) else getFloatFromGene(plusProp, 0, maxVal)
-      val minusValue = if (isSuper) getDynamicSeparatedFloatFromGene(minusProp, 0, minVal, true) else getFloatFromGene(minusProp, 0, minVal)
-      plusValue.get - minusValue.get
-    }
+
     def calculateStandard(key: GeneticProperty, minVal: Float, maxVal: Float, isSuper: Boolean = true): Float = {
       val value = if (isSuper) getDynamicSeparatedFloatFromGene(key, minVal, maxVal) else getFloatFromGene(key, minVal, maxVal)
       value.get
@@ -412,23 +478,11 @@ case class MasterDogGene
     val floatMap = mut.Map[String, Float]()
 
     
-    def matFromDefault(default: Dog.Material, name: String): CalculatedMaterial =
-      import default.*
-      val metallic = minMetallic + calculatePlusMinus(name + "Metallic", minMetallic, maxMetallic, isSuper = false)
-      val glossiness = minGlossiness + calculatePlusMinus(name + "Gloss", minGlossiness, maxGlossiness, isSuper = false)
-      val baseR = minBaseR + calculatePlusMinus(name + "ColorR", minBaseR, maxBaseR, isSuper = false)
-      val baseG = minBaseG + calculatePlusMinus(name + "ColorG", minBaseG, maxBaseG, isSuper = false)
-      val baseB = minBaseB + calculatePlusMinus(name + "ColorB", minBaseB, maxBaseB, isSuper = false)
-      val base = ColorF(baseR, baseG, baseB)
-      val emiR = minEmissionR + calculatePlusMinus(name + "EmissionColorR", minEmissionR, maxEmissionR, isSuper = false)
-      val emiG = minEmissionG + calculatePlusMinus(name + "EmissionColorG", minEmissionG, maxEmissionG, isSuper = false)
-      val emiB = minEmissionB + calculatePlusMinus(name + "EmissionColorB", minEmissionB, maxEmissionB, isSuper = false)
-      val emission = ColorF(emiR, emiG, emiB)
-      CalculatedMaterial(base, emission, metallic, glossiness)
+
     
-    val bodyMat = matFromDefault(Dog.defaultMaterials.body, "Body")
-    val legMat = matFromDefault(Dog.defaultMaterials.legs, "Leg")
-    val noseEarMat = matFromDefault(Dog.defaultMaterials.earsNose, "NoseEar")
+    val bodyMat = getPartMaterial(DogMaterialPart.Body)
+    val legMat = getPartMaterial(DogMaterialPart.Leg)
+    val noseEarMat = getPartMaterial(DogMaterialPart.NoseEar)
 
     CalculatedGenes(
       bodyMat = bodyMat,
@@ -461,10 +515,10 @@ case class MasterDogGene
         if (gene.plusMinus.b) {
           val key2 = key + MasterDogGene.plusString
           val key3 = key + MasterDogGene.minusString
-          stringBuilder.append(getGeneString(GeneticProperty.valueOf(key2)).get)
-          stringBuilder.append(getGeneString(GeneticProperty.valueOf(key3)).get)
+          stringBuilder.append(getGeneString(GeneticProperty.values(key2)).get)
+          stringBuilder.append(getGeneString(GeneticProperty.values(key3)).get)
         } else {
-          stringBuilder.append(getGeneString(GeneticProperty.valueOf(key)).get)
+          stringBuilder.append(getGeneString(GeneticProperty.values(key)).get)
         }
       }
     }
@@ -475,11 +529,11 @@ case class MasterDogGene
         if (gene.plusMinus.b) {
           val plusKey = gene.key + MasterDogGene.plusString
           val minusKey = gene.key + MasterDogGene.minusString
-          stringBuilder.append(getGeneString(GeneticProperty.valueOf(plusKey)).get)
+          stringBuilder.append(getGeneString(GeneticProperty.values(plusKey)).get)
           stringBuilder.append(separatorSymbol)
-          stringBuilder.append(getGeneString(GeneticProperty.valueOf(minusKey)).get)
+          stringBuilder.append(getGeneString(GeneticProperty.values(minusKey)).get)
         } else {
-          stringBuilder.append(getGeneString(GeneticProperty.valueOf(key)).get)
+          stringBuilder.append(getGeneString(GeneticProperty.values(key)).get)
         }
       }
     }
@@ -538,7 +592,7 @@ object MasterDogGene {
       if (num2 == -1) {
         num2 = dogGene.length
       }
-      val freakyProperty = GeneticProperty.valueOf(gene.key + optionalKeyAddition)
+      val freakyProperty = GeneticProperty.values(gene.key + optionalKeyAddition)
       var newMaxValIncrease = gene.superMutationValueAddition
       if (minus) {
         newMaxValIncrease = 0f
@@ -547,7 +601,7 @@ object MasterDogGene {
       currentSuperIndex = num
     }
     def mapStandardGene(gene: DogGeneTemplate, optionalKeyAddition: String = ""): Unit = {
-      val freakyProperty = GeneticProperty.valueOf(gene.key + optionalKeyAddition)
+      val freakyProperty = GeneticProperty.values(gene.key + optionalKeyAddition)
       geneticHolders(freakyProperty) = DogGeneHolder.Standard(dogGene.substring(currentStandardIndex, currentStandardIndex + gene.length))
       currentStandardIndex += gene.length
     }
@@ -560,7 +614,7 @@ object MasterDogGene {
       // may break if gene is old? i eepy
       val value = DogGeneHolder.Looped(dogGene.substring(currentStandardIndex, currentStandardIndex + gene.length * num), gene.length, gene.discrete.b)
 
-      val freakyProperty = GeneticProperty.valueOf(gene.key + optionalKeyAddition)
+      val freakyProperty = GeneticProperty.values(gene.key + optionalKeyAddition)
       geneticHolders(freakyProperty) = value
       currentStandardIndex += gene.length * num
     }

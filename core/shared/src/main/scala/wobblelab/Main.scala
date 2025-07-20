@@ -267,9 +267,11 @@ object RawDog {
 }
 case class Dog(personality: DogPersonality, geneProp0 : DogGene0, geneProp1: DogGene1, domRecGene : DomRecGene, age: DogAge, ageProgress: Float,
   eolModifier: Float, lifeExtension: Float, dogName : String) {
-  def asRawDog: RawDog = {
-    val dogGene = geneProp0.serialized + "|" + geneProp1.serialized
-    RawDog(GeneVersion.Three, dogGene, domRecGene.serialized, age, ageProgress, eolModifier, lifeExtension, personality, dogName)
+  def asRawDog: Option[RawDog] = {
+    geneProp0.serialized.map: prop0 =>
+      
+      val dogGene = prop0 + "|" + geneProp1.serialized
+      RawDog(GeneVersion.Three, dogGene, domRecGene.serialized, age, ageProgress, eolModifier, lifeExtension, personality, dogName)
   }
 }
 object Dog {
@@ -629,15 +631,37 @@ case class DogGene0(
                      patternInfo : String,
                      extraBits : String
       ) {
-    lazy val serialized: String =
-      randomSeed + bodyShiny.serialized + bodyColor.serialized +
-      legShiny.serialized + legColor.serialized + noseShiny.serialized +
-      noseColor.serialized + noseModA.gene0Serialized + hornSize.gene0Serialized +
-      earModA.gene0Serialized + earCurl.gene0Serialized + snoutModA.gene0Serialized +
-      snoutModB.gene0Serialized + snoutModC.gene0Serialized + headSize.gene0Serialized +
-      wingSize.gene0Serialized + stanceWidthFront.gene0Serialized + stanceWidthBack.gene0Serialized +
-      patternColor.patternSerialized + patternAlpha + patternShiny.serialized + patternNum +
-      patternFlipX + patternFlipY + patternInfo + extraBits
+    lazy val serialized: Option[String] =
+      for {
+        bodyShinyS <- bodyShiny.serialized
+        bodyColorS <- bodyColor.serialized
+        legShinyS <- legShiny.serialized
+        legColorS <- legColor.serialized
+        noseShinyS <- noseShiny.serialized
+        noseColorS <- noseColor.serialized
+        noseModAS <- noseModA.gene0Serialized
+        hornSizeS <- hornSize.gene0Serialized
+        earModAS <- earModA.gene0Serialized
+        earCurlS <- earCurl.gene0Serialized
+        snoutModAS <- snoutModA.gene0Serialized
+        snoutModBS <- snoutModB.gene0Serialized
+        snoutModCS <- snoutModC.gene0Serialized
+        headSizeS <- headSize.gene0Serialized
+        wingSizeS <- wingSize.gene0Serialized
+        stanceWidthFrontS <- stanceWidthFront.gene0Serialized
+        stanceWidthBackS <- stanceWidthBack.gene0Serialized
+        patternColorS <- patternColor.patternSerialized
+        patternShinyS <- patternShiny.serialized
+      } yield {
+        randomSeed + bodyShinyS + bodyColorS +
+          legShinyS + legColorS + noseShinyS +
+          noseColorS + noseModAS + hornSizeS +
+          earModAS + earCurlS + snoutModAS +
+          snoutModBS + snoutModCS + headSizeS +
+          wingSizeS + stanceWidthFrontS + stanceWidthBackS +
+          patternColorS + patternAlpha + patternShinyS + patternNum +
+          patternFlipX + patternFlipY + patternInfo + extraBits
+      }
 }
 
 object DogGene0 {
@@ -762,9 +786,10 @@ case class ShinyGene(
     metallicMinus : String = "00000",
     glossPlus : String = "00000",
     glossMinus : String = "00000") {
-  lazy val serialized =
-    metallicPlus + metallicMinus +
-    glossPlus + glossMinus
+  lazy val serialized: Option[String] =
+    val r = metallicPlus + metallicMinus +
+      glossPlus + glossMinus
+    Option.when(r.length == (4 * 5))(r)
 }
 object ShinyGene {
   val parser = {
@@ -786,17 +811,20 @@ case class ColorGene(
     baseBluePlus : String = "00000",
     baseBlueMinus : String = "00000"
   ) {
-  lazy val serialized = {
-    emissionRedPlus + emissionRedMinus + emissionGreenPlus +
-    emissionGreenMinus + emissionBluePlus + emissionBlueMinus +
-    baseRedPlus + baseRedMinus + baseGreenPlus +
-    baseGreenMinus + baseBluePlus + baseBlueMinus
+  lazy val serialized: Option[String] = {
+    val r = emissionRedPlus + emissionRedMinus + emissionGreenPlus +
+      emissionGreenMinus + emissionBluePlus + emissionBlueMinus +
+      baseRedPlus + baseRedMinus + baseGreenPlus +
+      baseGreenMinus + baseBluePlus + baseBlueMinus
+    Option.when(r.length == (12 * 5))(r)
+    
   }
   lazy val patternSerialized = {
-    baseRedPlus + baseRedMinus + baseGreenPlus +
-    baseGreenMinus + baseBluePlus + baseBlueMinus +
-    emissionRedPlus + emissionRedMinus + emissionGreenPlus +
-    emissionGreenMinus + emissionBluePlus + emissionBlueMinus
+    val r = baseRedPlus + baseRedMinus + baseGreenPlus +
+      baseGreenMinus + baseBluePlus + baseBlueMinus +
+      emissionRedPlus + emissionRedMinus + emissionGreenPlus +
+      emissionGreenMinus + emissionBluePlus + emissionBlueMinus
+    Option.when(r.length == (12 * 5))(r)
   }
 }
 
@@ -855,8 +883,10 @@ object ColorGene {
 case class DualGene(
   plus : String = "00000",
   minus : String = "00000" ) {
-    lazy val gene0Serialized =
-      plus + minus
+    lazy val gene0Serialized: Option[String] =
+      val r = plus + minus
+      Option.when(r.length == 10)(r)
+    // gene 1 has dynamic gene length
     lazy val gene1Serialized =
       plus + "|" + minus
 }

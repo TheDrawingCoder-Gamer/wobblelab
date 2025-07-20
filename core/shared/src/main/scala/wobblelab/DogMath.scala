@@ -218,11 +218,11 @@ object DogMath {
     if (gene.isEmpty) {
       return minVal
     }
-    val num = getNumBinaryPermutations(gene.length)
-    val num2: Float = getFloatFromBinaryString(gene) / num
-    val num3 = maxVal - minVal
+    val num = getNumBinaryPermutations(gene.length) // get the max value of a value of this size
+    val num2: Float = getFloatFromBinaryString(gene) / num // turn into range from 0 to 1
+    val num3 = maxVal - minVal // range
     val num4 = num2 * num3 + minVal
-    val num5 = 0.1f
+    val num5 = 0.1f // with weird clamping
     if (num4 - num5 > maxVal) {
       maxVal
     } else if (num4 + num5 < minVal) {
@@ -232,4 +232,12 @@ object DogMath {
     }
 
   }
+  def floatToGeneSequence(value: Float, minVal: Float, maxVal: Float, len: Int): String =
+    val perms = getNumBinaryPermutations(len)
+    val n = math.max(math.min(((value - minVal) / (maxVal - minVal)) * perms, perms), 0)
+
+    val s = java.lang.Long.toBinaryString(n.toLong)
+    "0".repeat(len - s.length) ++ s
+
+
 }

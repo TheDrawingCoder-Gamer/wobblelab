@@ -61,6 +61,16 @@ enum DogGeneType extends Enum[DogGeneType] derives OrdinalEncoder, OrdinalDecode
   case Looped
 }
 
+// Scala DogGeneType
+enum SDogGeneType {
+  case Standard, Super
+  case Looped(loopCount: Int)
+  
+  def strictLength: Boolean = this match
+    case Standard | Looped(_) => true
+    case _ => false
+}
+
 
 
 enum DogGeneCategory extends Enum[DogGeneCategory] derives OrdinalEncoder, OrdinalDecoder {

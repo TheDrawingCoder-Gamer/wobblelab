@@ -49,6 +49,8 @@ object Main extends IOWebApp {
       )
     }
 
+  
+  
   def matSection(dog: SignallingRef[IO, GameDog], mat: Signal[IO, CalculatedMaterial], name: String, part: DogMaterialPart): Resource[IO, HtmlElement[IO]] =
     val geneDawg = SignallingRef.lens[IO, GameDog, MasterDogGene](dog)(_.masterGene, src => gene => {
       val raw = gene.getRawString
@@ -56,13 +58,13 @@ object Main extends IOWebApp {
     })
     div(
       p(name + " color: ", mat.map(_.base.showOpaque), "  ", matColor(part, geneDawg, mat, _.base, src => it => src.copy(base = it))),
-      p(name + " emission color: ", mat.map(_.emission.toString), "  ", matColor(part, geneDawg, mat, _.emission, src => it => src.copy(emission = it))),
+      p(name + " emission color: ", mat.map(_.emission.showOpaque), "  ", matColor(part, geneDawg, mat, _.emission, src => it => src.copy(emission = it))),
       p(name + " metallic: ", mat.map(it => (it.metallic * 100).toString)),
       p(name + " glossiness: ", mat.map(it => (it.glossiness * 100).toString))
     )
 
   def resultPane(dog: SignallingRef[IO, GameDog]): Resource[IO, HtmlElement[IO]] = {
-    val calculatedSignal = dog.map(_.masterGene.calculateGenes())
+    val calculatedSignal = dog.map(_.calculatedGenes)
     div(
       cls := "scrollView",
       div(
@@ -81,7 +83,12 @@ object Main extends IOWebApp {
         p("Head number: ", calculatedSignal.map(_.headNumber.toString)),
         matSection(dog, calculatedSignal.map(_.bodyMat), "Body", DogMaterialPart.Body),
         matSection(dog, calculatedSignal.map(_.legColor), "Legs", DogMaterialPart.Leg),
-        matSection(dog, calculatedSignal.map(_.noseEarColor), "Nose/Ear", DogMaterialPart.NoseEar)
+        matSection(dog, calculatedSignal.map(_.noseEarColor), "Nose/Ear", DogMaterialPart.NoseEar),
+        div(
+          children <-- calculatedSignal.map(_.floatItems.toList.sortBy(_._1.displayName).map { (gene, value) =>
+            p(gene.displayName + ": ", value.value.toString, " ", (value.percentage * 100).toString + "%")
+          })
+        )
 
       )
     )
@@ -185,12 +192,12 @@ object Main extends IOWebApp {
     div(
       cls := "scrollView",
       div(
-        db.GeneticProperty.values.values.map { key =>
+        db.GeneticProperty.values.map { key =>
           strCompTextbox(key.displayName,
             SignallingRef.lens[IO, MasterDogGene, String](masterGene)
                          (it => it.getGeneString(key).getOrElse(""),
                            src => it => src.updatedGeneString(key, it).getOrElse(src)))
-        }.toList
+        }
       )
     )
   }

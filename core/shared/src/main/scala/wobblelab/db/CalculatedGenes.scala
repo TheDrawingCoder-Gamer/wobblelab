@@ -15,11 +15,16 @@ object CalculatedMaterial {
     CalculatedMaterial(util.ColorF.WHITE, util.ColorF.WHITE, 1.0f, 1.0f)
 }
 
+
+
+
+case class CalculatedValue(value: Float, percentage: Float)
+
 case class CalculatedGenes(
                           bodyMat: CalculatedMaterial,
                           legColor: CalculatedMaterial,
                           noseEarColor: CalculatedMaterial,
-                          floatItems: Map[String, Float],
+                          floatItems: Map[Gene, CalculatedValue],
                           headNumber: Int,
                           tailNumber: Int,
                           wingNumber: Int,

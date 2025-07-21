@@ -192,6 +192,9 @@ enum DogAge {
   case YoungAdult
   case Adult
   case Ancient
+  
+  def ratio: Float =
+    this.ordinal.toFloat / DogAge.values.length
 }
 object DogAge {
   def parseString(str: String) =
@@ -296,6 +299,10 @@ object Dog {
   val bodyScaleXMin: Float = 0.75
   val bodyScaleXMax: Float = 0.75
   val bodyScaleXCap: Float = 2
+  
+  val bodyScaleYMin: Float = 0.5
+  val bodyScaleYMax: Float = 1
+  val bodyScaleYCap: Float = 2
 
   val bodyScaleYZMin: Float = 0.3
   val bodyScaleYZMax: Float = 0.3
@@ -307,6 +314,7 @@ object Dog {
 
   val tailScaleMin: Float = 0.5
   val tailScaleMax: Float = 1.75
+  val tailScaleCap: Float = 2.25
 
   val tailNumMin: Float = 1
   val tailNumMax: Float = 1
@@ -319,8 +327,8 @@ object Dog {
 
   // wing z??
 
-  val legGirthMin: Float = 0.55
-  val legGirthMax: Float = 1
+  val legGirthMin: Float = 0.55f
+  val legGirthMax: Float = 1f
   val legGirthMaxPuppy: Float = 0.6
 
   val legLengthTopMin: Float = 0.15
@@ -335,6 +343,12 @@ object Dog {
   val legNumberMin: Float = 1
   val legNumberMax: Float = 2
   val legNumberIncreaseRate: Float = 0.975f
+
+  val noseModAMin: Float = 0.7f
+  val noseModAMax: Float = 0.6f
+
+  val patternNumMin: Int = 0
+  val patternNumMax: Int = 25
 
   // ???
   val legNumberCap: Int = 6

@@ -12,4 +12,5 @@ case class GameDog(dogName: String,
     val rawGene = masterGene.getRawString
     RawDog(GeneVersion.Three, rawGene.dogGene, rawGene.domRecGene, age, ageProgress, eolModifier, lifeExtension, personality, dogName)
   }
+  def calculatedGenes: db.CalculatedGenes = masterGene.calculateGenes()(using db.DogContext(age))
 }

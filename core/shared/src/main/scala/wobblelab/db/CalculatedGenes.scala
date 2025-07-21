@@ -25,19 +25,13 @@ case class CalculatedGenes(
                           legColor: CalculatedMaterial,
                           noseEarColor: CalculatedMaterial,
                           floatItems: Map[Gene, CalculatedValue],
-                          headNumber: Int,
-                          tailNumber: Int,
-                          wingNumber: Int,
-                          frontLegPairs: Int,
-                          backLegPairs: Int,
+                          integralItems: Map[Gene, Int],
                           // TODO: voice
-                          // TODO: ear curl, ear mod a
                           earType: EarType,
                           eyeType: EyeType,
                           hornType: HornType,
                           hornPlacement: HornPlacement,
                           mouthType: MouthType,
-                          // TODO: nose mod a
                           noseType: NoseType,
                           tailType: TailType,
                           wingType: WingType

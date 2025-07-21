@@ -245,29 +245,12 @@ case class RawDog(geneVersion: GeneVersion, dogGene: String, domRecGene: String,
     val genes = db.MasterDogGene.fromGenes(dogGene, domRecGene)
     GameDog(dogName, genes, personality, dogAge, dogAgeProgress, eolModifier, lifeExtension)
   }
+  def toDog: Dog =
+    val geneProp0 = DogGene0.parse(dogGene.takeWhile(_ != '|')).get
+    val geneProp1 = DogGene1.parser.parse(dogGene.dropWhile(_ != '|').tail).toOption.get._2
+    Dog(personality, geneProp0, geneProp1, DomRecGene.parse(domRecGene), dogAge, dogAgeProgress, eolModifier, lifeExtension, dogName)
 }
-object RawDog {
-  @experimental
-  object experimental {
-    extension (self: RawDog) {
-      def toDog: Option[Dog] = {
-        val gene0res = DogGene0.parser.parse(self.dogGene)
-        gene0res match {
-          case Left(e) =>
-            None
-          case Right((rest, prop0genes)) =>
-            DogGene1.parser.parseAll(rest) match {
-              case Left(e) =>
-                None
-              case Right(prop1genes) =>
-                val domRecGenes = DomRecGene.parser.parseAll(self.domRecGene).toOption.get
-                Some(Dog(self.personality, prop0genes, prop1genes, domRecGenes, self.dogAge, self.dogAgeProgress, self.eolModifier, self.lifeExtension, self.dogName))
-            }
-        }
-      }
-    }
-  }
-}
+
 case class Dog(personality: DogPersonality, geneProp0 : DogGene0, geneProp1: DogGene1, domRecGene : DomRecGene, age: DogAge, ageProgress: Float,
   eolModifier: Float, lifeExtension: Float, dogName : String) {
   def asRawDog: Option[RawDog] = {
@@ -543,72 +526,7 @@ object Dog {
         "000000000000000",
         "000000000000000"
       ),
-      DomRecGene(
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.het,
-        DomRecAllele.het,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.het,
-        DomRecAllele.het,
-        DomRecAllele.dom,
-        DomRecAllele.sub,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        // todo: get real values for this
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom,
-        DomRecAllele.dom
-      ),
+      DomRecGene.default,
       DogAge.Adult,
       0.0166659,
       0,
@@ -710,6 +628,59 @@ object DogGene0 {
                   .ap(Parser.length(sLen * 25))
                   .ap(Parser.until0(Parser.char('|')) <* Parser.char('|'))
   }
+  def parse(s: String): Option[DogGene0] =
+    var ss = s.toList
+    def takeN(n: Int): String =
+      val r = ss.take(n).mkString("")
+      ss = ss.drop(n)
+      r
+    def shinyGene: Option[ShinyGene] =
+      val r = takeN(ShinyGene.size)
+      ShinyGene.parser.parse(r).toOption.map(_._2)
+    def colorGene: Option[ColorGene] =
+      val r = takeN(ColorGene.size)
+      ColorGene.parser.parse(r).toOption.map(_._2)
+    def colorPatternGene: Option[ColorGene] =
+      val r = takeN(ColorGene.size)
+      ColorGene.parserPattern.parse(r).toOption.map(_._2)
+    def dualGene: Option[DualGene] =
+      val r = takeN(DualGene.size0)
+      DualGene.parserGene0.parse(r).toOption.map(_._2)
+    
+    val sLen = 5
+    val randomSeed = takeN(sLen * 2)
+    for {
+      bodyShiny <- shinyGene
+      bodyColor <- colorGene
+      legShiny <- shinyGene
+      legColor <- colorGene
+      noseShiny <- shinyGene
+      noseColor <- colorGene
+      noseModA <- dualGene
+      hornSize <- dualGene
+      earModA <- dualGene
+      earCurl <- dualGene
+      snoutModA <- dualGene
+      snoutModB <- dualGene
+      snoutModC <- dualGene
+      headSize <- dualGene
+      wingSize <- dualGene
+      stanceWidthFront <- dualGene
+      stanceWidthBack <- dualGene
+      patternColor <- colorPatternGene
+      patternAlpha = takeN(sLen)
+      patternShiny <- shinyGene
+      patternNum = takeN(sLen)
+      patternFlipX = takeN(sLen * 5)
+      patternFlipY = takeN(sLen * 5)
+      patternInfo = takeN(sLen * 25)
+      extraBits = ss.takeWhile(_ != '|')
+    } yield
+      DogGene0(randomSeed, bodyShiny, bodyColor, legShiny, legColor, noseShiny, noseColor,
+        noseModA, hornSize, earModA, earCurl, snoutModA, snoutModB, snoutModC, headSize, wingSize,
+        stanceWidthFront, stanceWidthBack, patternColor, patternAlpha, patternShiny, patternNum,
+        patternFlipX, patternFlipY, patternInfo, extraBits.mkString(""))
+    
 }
 
 
@@ -752,7 +723,7 @@ case class DogGene1(
     "|" + legPairsBack
 }
 object DogGene1 {
-  def parser = {
+  def parser: Parser[DogGene1] = {
     val sectionParser = Parser.until(Parser.char('|')) <* Parser.char('|')
     ( sectionParser
     , DualGene.parserGene1
@@ -803,13 +774,14 @@ case class ShinyGene(
   lazy val serialized: Option[String] =
     val r = metallicPlus + metallicMinus +
       glossPlus + glossMinus
-    Option.when(r.length == (4 * 5))(r)
+    Option.when(r.length == ShinyGene.size)(r)
 }
 object ShinyGene {
   val parser = {
     val sectionParser = Parser.length(5)
     (sectionParser, sectionParser, sectionParser, sectionParser).mapN[Parser, ShinyGene](ShinyGene.apply)
   }
+  val size: Int = 4 * 5
 }
 case class ColorGene(
     emissionRedPlus : String = "00000",
@@ -830,7 +802,7 @@ case class ColorGene(
       emissionGreenMinus + emissionBluePlus + emissionBlueMinus +
       baseRedPlus + baseRedMinus + baseGreenPlus +
       baseGreenMinus + baseBluePlus + baseBlueMinus
-    Option.when(r.length == (12 * 5))(r)
+    Option.when(r.length == ColorGene.size)(r)
     
   }
   lazy val patternSerialized = {
@@ -838,11 +810,12 @@ case class ColorGene(
       baseGreenMinus + baseBluePlus + baseBlueMinus +
       emissionRedPlus + emissionRedMinus + emissionGreenPlus +
       emissionGreenMinus + emissionBluePlus + emissionBlueMinus
-    Option.when(r.length == (12 * 5))(r)
+    Option.when(r.length == ColorGene.size)(r)
   }
 }
 
 object ColorGene {
+  val size: Int = 12 * 5
   private val parserBase = {
     val sectionParser = Parser.length(5)
     ( sectionParser
@@ -860,7 +833,7 @@ object ColorGene {
   }
   val parser : Parser[ColorGene] =
     parserBase.mapN[Parser, ColorGene](ColorGene.apply)
-  val parserPattern =
+  val parserPattern: Parser[ColorGene] =
     parserBase.mapN[Parser, ColorGene]( ( g, h, i, j, k, l, a, b, c, d, e, f) =>
         ColorGene(a, b, c, d, e, f, g, h, i, j, k, l) )
   def parsePattern(groups : Iterator[String]) : ColorGene = {
@@ -899,12 +872,13 @@ case class DualGene(
   minus : String = "00000" ) {
     lazy val gene0Serialized: Option[String] =
       val r = plus + minus
-      Option.when(r.length == 10)(r)
+      Option.when(r.length == DualGene.size0)(r)
     // gene 1 has dynamic gene length
     lazy val gene1Serialized =
       plus + "|" + minus
 }
 object DualGene {
+  val size0: Int = 10
   val parserGene0 = {
     val sectionParser = Parser.length(5)
     (sectionParser, sectionParser).mapN[Parser, DualGene](DualGene.apply)
@@ -927,7 +901,7 @@ case class DomRecAllele(leftDom: Boolean, rightDom : Boolean) {
   }
 }
 object DomRecAllele {
-  val parser = {
+  val parser: Parser[DomRecAllele] = {
     val cParser = Parser.char('A').as(true).backtrack.orElse(Parser.char('a').as(false))
     (cParser, cParser).mapN[Parser, DomRecAllele](DomRecAllele.apply)
   }
@@ -942,240 +916,27 @@ object DomRecAllele {
   val het: DomRecAllele = DomRecAllele(true, false)
   val sub: DomRecAllele = DomRecAllele(false, false)
 }
-case class DomRecGene(
-  frontLeftLeg : DomRecAllele,
-  frontRightLeg : DomRecAllele,
-  backLeftLeg : DomRecAllele,
-  backRightLeg : DomRecAllele,
-  voicePitchHigh : DomRecAllele,
-  voicePitchLow : DomRecAllele,
-  voiceHoarse : DomRecAllele,
-  smallPupils : DomRecAllele,
-  eyelids : DomRecAllele,
-  oblongEyes : DomRecAllele,
-  multiPupils : DomRecAllele,
-  teeth  : DomRecAllele,
-  vMouth : DomRecAllele,
-  openMouth : DomRecAllele,
-  tiltedEars : DomRecAllele,
-  nubTail : DomRecAllele,
-  tailCurl : DomRecAllele,
-  tailStiffness : DomRecAllele,
-  stripePattern : DomRecAllele,
-  splotchRepeatingPattern : DomRecAllele,
-  noPattern : DomRecAllele,
-  wings : DomRecAllele,
-  wingIssues : DomRecAllele,
-  missingWing : DomRecAllele,
-  alignment : DomRecAllele,
-  wingFeathers : DomRecAllele,
-  longEyes : DomRecAllele,
-  horizontalEyes : DomRecAllele,
-  triangleEyes : DomRecAllele,
-  missingPupilEyes : DomRecAllele,
-  decorativeEyes : DomRecAllele,
-  lashesEyes : DomRecAllele,
-  spiralEyes : DomRecAllele,
-  triangleEyes2 : DomRecAllele,
-  geometricEyes : DomRecAllele,
-  flatTail : DomRecAllele,
-  bulbousTail : DomRecAllele,
-  repeatedTail : DomRecAllele,
-  thinTail : DomRecAllele,
-  tail3d : DomRecAllele,
-  noseExtrusion : DomRecAllele,
-  noseStretch : DomRecAllele,
-  noseFlat : DomRecAllele,
-  noseRepeated : DomRecAllele,
-  earFilled : DomRecAllele,
-  earFlop : DomRecAllele,
-  earSharp : DomRecAllele,
-  earHalved : DomRecAllele,
-  earConic : DomRecAllele,
-  earCurlSynced : DomRecAllele,
-  traditionalHorns : DomRecAllele,
-  hornsCenter : DomRecAllele,
-  hornsNone : DomRecAllele,
-  hornsCurled : DomRecAllele,
-  hornsNub : DomRecAllele,
-  mouthHappiness : DomRecAllele,
-  mouthCheeks : DomRecAllele,
-  hornsThick : DomRecAllele,
-  hornsThin : DomRecAllele,
-  mouthMissingTeeth : DomRecAllele,
-  mouthPointed : DomRecAllele,
-  mouthCutoff : DomRecAllele,
-  mouthWiggle : DomRecAllele) {
-  lazy val serialized =
-    frontLeftLeg.serialized + frontRightLeg.serialized +
-    backLeftLeg.serialized + backRightLeg.serialized +
-    voicePitchHigh.serialized +
-    voicePitchLow.serialized + voiceHoarse.serialized +
-    smallPupils.serialized + eyelids.serialized +
-    oblongEyes.serialized + multiPupils.serialized +
-    teeth.serialized + vMouth.serialized +
-    openMouth.serialized + tiltedEars.serialized +
-    nubTail.serialized + tailCurl.serialized +
-    tailStiffness.serialized + stripePattern.serialized +
-    splotchRepeatingPattern.serialized + noPattern.serialized +
-    wings.serialized + wingIssues.serialized + missingWing.serialized +
-    alignment.serialized + wingFeathers.serialized + longEyes.serialized +
-    horizontalEyes.serialized + triangleEyes.serialized +
-    missingPupilEyes.serialized + decorativeEyes.serialized +
-    lashesEyes.serialized + spiralEyes.serialized +
-    triangleEyes2.serialized + geometricEyes.serialized +
-    flatTail.serialized + bulbousTail.serialized +
-    repeatedTail.serialized + thinTail.serialized + tail3d.serialized +
-    noseExtrusion.serialized + noseStretch.serialized + noseFlat.serialized +
-    noseRepeated.serialized + earFilled.serialized + earFlop.serialized +
-    earSharp.serialized + earHalved.serialized + earConic.serialized +
-    earCurlSynced.serialized + traditionalHorns.serialized + hornsCenter.serialized +
-    hornsNone.serialized + hornsCurled.serialized + hornsNub.serialized +
-    mouthHappiness.serialized + mouthCheeks.serialized + hornsThick.serialized +
-    hornsThin.serialized + mouthMissingTeeth.serialized + mouthPointed.serialized + mouthCutoff.serialized +
-    mouthWiggle.serialized
+case class DomRecGene(gene: Vector[DomRecAllele]) {
+  lazy val serialized: String = gene.map(_.serialized).mkString("")
+
+  def apply(n: Int): DomRecAllele =
+    gene(n)
 }
 
 object DomRecGene {
-  @experimental
-  val parser : Parser0[DomRecGene] = {
-    FunctionHelper.curried(DomRecGene.apply).pure[Parser0]
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-      .ap(DomRecAllele.parser)
-  }
+  def default: DomRecGene =
+    val args =
+      db.DomRecGeneStatic.values.map: it =>
+        it.defaultValue match
+          case db.TraitType.Dom => DomRecAllele(true, true)
+          case db.TraitType.Het => DomRecAllele(true, false)
+          case db.TraitType.Sub => DomRecAllele(false, false)
+    DomRecGene(args.toVector)
+
   def parse(str: String) : DomRecGene = {
     val groups = str.grouped(2)
-    val frontLeftLeg = DomRecAllele.parse(groups)
-    val frontRightLeg = DomRecAllele.parse(groups)
-    val backLeftLeg = DomRecAllele.parse(groups)
-    val backRightLeg = DomRecAllele.parse(groups)
-    val voicePitchHigh = DomRecAllele.parse(groups)
-    val voicePitchLow = DomRecAllele.parse(groups)
-    val voiceHoarse = DomRecAllele.parse(groups)
-    val smallPupils = DomRecAllele.parse(groups)
-    val eyelids = DomRecAllele.parse(groups)
-    val oblongEyes = DomRecAllele.parse(groups)
-    val multiPupils = DomRecAllele.parse(groups)
-    val teeth = DomRecAllele.parse(groups)
-    val vMouth = DomRecAllele.parse(groups)
-    val openMouth = DomRecAllele.parse(groups)
-    val tiltedEars = DomRecAllele.parse(groups)
-    val nubTail = DomRecAllele.parse(groups)
-    val tailCurl = DomRecAllele.parse(groups)
-    val tailStiffness = DomRecAllele.parse(groups)
-    val stripePattern = DomRecAllele.parse(groups)
-    val splotchRepeatingPattern = DomRecAllele.parse(groups)
-    val noPattern = DomRecAllele.parse(groups)
-    val wings = DomRecAllele.parse(groups)
-    val wingIssues = DomRecAllele.parse(groups)
-    val missingWing = DomRecAllele.parse(groups)
-    val alignment = DomRecAllele.parse(groups)
-    val wingFeathers = DomRecAllele.parse(groups)
-    val longEyes = DomRecAllele.parse(groups)
-    val horizontalEyes = DomRecAllele.parse(groups)
-    val triangleEyes = DomRecAllele.parse(groups)
-    val missingPupilEyes = DomRecAllele.parse(groups)
-    val decorativeEyes = DomRecAllele.parse(groups)
-    val lashesEyes = DomRecAllele.parse(groups)
-    val spiralEyes = DomRecAllele.parse(groups)
-    val triangleEyes2 = DomRecAllele.parse(groups)
-    val geometricEyes = DomRecAllele.parse(groups)
-    val flatTail = DomRecAllele.parse(groups)
-    val bulbousTail = DomRecAllele.parse(groups)
-    val repeatedTail = DomRecAllele.parse(groups)
-    val thinTail = DomRecAllele.parse(groups)
-    val tail3d = DomRecAllele.parse(groups)
-    val noseExtension = DomRecAllele.parse(groups)
-    val noseStretch = DomRecAllele.parse(groups)
-    val noseFlat = DomRecAllele.parse(groups)
-    val noseRepeated = DomRecAllele.parse(groups)
-    val earFilled = DomRecAllele.parse(groups)
-    val earFlop = DomRecAllele.parse(groups)
-    val earSharp = DomRecAllele.parse(groups)
-    val earHalved = DomRecAllele.parse(groups)
-    val earConic = DomRecAllele.parse(groups)
-    val earCurlSynced = DomRecAllele.parse(groups)
-    val traditionalHorns = DomRecAllele.parse(groups)
-    val hornsCenter = DomRecAllele.parse(groups)
-    val hornNone = DomRecAllele.parse(groups)
-    val hornCurled = DomRecAllele.parse(groups)
-    val hornNub = DomRecAllele.parse(groups)
-    val mouthSmile = DomRecAllele.parse(groups)
-    val mouthCheeks = DomRecAllele.parse(groups)
-    val hornThick = DomRecAllele.parse(groups)
-    val hornThin = DomRecAllele.parse(groups)
-    val mouthMissingTeeth = DomRecAllele.parse(groups)
-    val mouthPointed = DomRecAllele.parse(groups)
-    val mouthCutoff = DomRecAllele.parse(groups)
-    val mouthWiggle = DomRecAllele.parse(groups)
-
-    DomRecGene(frontLeftLeg, frontRightLeg, backLeftLeg, backRightLeg, voicePitchHigh, voicePitchLow, voiceHoarse,
-      smallPupils, eyelids, oblongEyes, multiPupils, teeth, vMouth, openMouth, tiltedEars, nubTail, tailCurl, tailStiffness,
-      stripePattern, splotchRepeatingPattern, noPattern, wings, wingIssues, missingWing, alignment, wingFeathers, longEyes,
-      horizontalEyes, triangleEyes, missingPupilEyes, decorativeEyes, lashesEyes, spiralEyes, triangleEyes2, geometricEyes,
-      flatTail, bulbousTail, repeatedTail, thinTail, tail3d, noseExtension, noseStretch, noseFlat, noseRepeated, earFilled,
-      earFlop, earSharp, earHalved, earConic, earCurlSynced, traditionalHorns, hornsCenter, hornNone, hornCurled, hornNub,
-      mouthSmile, mouthCheeks, hornThick, hornThin, mouthMissingTeeth, mouthPointed, mouthCutoff, mouthWiggle)
+    val values = groups.map(it => DomRecAllele.parser.parse(it).toOption.get._2).toVector
+    assert(values.length == db.DomRecGeneStatic.values.length)
+    DomRecGene(values)
   }
 }

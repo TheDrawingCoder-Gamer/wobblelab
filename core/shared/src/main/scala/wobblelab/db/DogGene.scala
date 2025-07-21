@@ -65,10 +65,10 @@ enum DogGeneType extends Enum[DogGeneType] derives OrdinalEncoder, OrdinalDecode
 enum SDogGeneType {
   case Standard
   case Super(maxValIncrease: Float)
-  case Looped(loopCount: Int)
+  case Looped(loopCount: Int, discrete: Boolean = true)
   
   def strictLength: Boolean = this match
-    case Standard | Looped(_) => true
+    case Standard | Looped(_, _) => true
     case _ => false
 }
 

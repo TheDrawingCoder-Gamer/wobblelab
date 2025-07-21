@@ -38,6 +38,7 @@ enum DomRecGeneProperty(val displayName: String) derives OrdinalEncoder, Ordinal
   case LashesEyes extends DomRecGeneProperty("Lashes Eyes")
   case NoWings extends DomRecGeneProperty("No Wings")
   // this is what conservatives want...
+  // frankly, this is also what neoliberals want
   case MissingLeftWing extends DomRecGeneProperty("Missing Left Wing")
   // this is what liberals want...
   case MissingRightWing extends DomRecGeneProperty("Missing Right Wing")

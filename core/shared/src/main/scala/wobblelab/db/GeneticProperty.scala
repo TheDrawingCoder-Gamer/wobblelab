@@ -12,6 +12,7 @@ sealed trait GeneLike:
   def geneType: SDogGeneType
   def displayName: String
 
+
 trait HasDefiniteBounds:
   def minBound: Float
   def maxBound: Float
@@ -22,25 +23,26 @@ trait AgeBasedBounds extends HasDefiniteBounds:
 
 // Gene is something that would make sense to display to an outside person as a standalone value
 // so, not plus minus LOLLLLL
-sealed trait Gene:
+sealed trait Gene extends GeneLike:
   def displayName: String
 
 
-sealed abstract class PlusMinusGene(val displayName: String, val plus: GeneticProperty, val minus: GeneticProperty, val rawLen: Int, val geneType: SDogGeneType = SDogGeneType.Standard, val usesMinusArg: Boolean = false) extends GeneLike, Gene:
+sealed abstract class PlusMinusGene(val displayName: String, daPlus: => GeneticProperty, daMinus: => GeneticProperty, val rawLen: Int, val geneType: SDogGeneType = SDogGeneType.Standard, val usesMinusArg: Boolean = false) extends GeneLike, Gene:
   def parent: Gene = this
-  
-  def defaultLen: Int = this.geneType match
-    case SDogGeneType.Looped(loopCount) => loopCount * rawLen
-    case _ => rawLen 
 
-trait DontSave
+  lazy val plus: GeneticProperty = daPlus
+  lazy val minus: GeneticProperty = daMinus
+
+  def defaultLen: Int = this.geneType match
+    case SDogGeneType.Looped(loopCount, _) => loopCount * rawLen
+    case _ => rawLen
 
 // What's actually _in the genome_ is a genetic property
 sealed trait GeneticProperty extends GeneLike
 
-sealed abstract class PlainGeneticProperty(val displayName: String, val rawLen: Int, val geneType: SDogGeneType = SDogGeneType.Standard) extends Gene, GeneticProperty:
+sealed abstract class PlainGeneticProperty(val displayName: String, val rawLen: Int, val geneType: SDogGeneType = SDogGeneType.Standard, val integral: Boolean = false) extends Gene, GeneticProperty:
   def defaultLen: Int = this.geneType match
-    case SDogGeneType.Looped(loopCount) => loopCount * rawLen
+    case SDogGeneType.Looped(loopCount, _) => loopCount * rawLen
     case _ => rawLen
   
   def parent: Gene = this
@@ -53,7 +55,7 @@ sealed abstract class PlusGeneticProperty(myParent: => PlusMinusGene) extends Ge
 
   override def defaultLen: Int = parent.defaultLen
 
-  override def geneType: SDogGeneType = myParent.geneType
+  override def geneType: SDogGeneType = parent.geneType
   
 sealed abstract class MinusGeneticProperty(myParent: => PlusMinusGene) extends GeneticProperty, GeneLike:
   lazy val parent: PlusMinusGene = myParent
@@ -69,154 +71,156 @@ object GeneticProperty {
 
   case object BodyMetallicPlus extends PlusGeneticProperty(BodyMetallic)
   case object BodyMetallicMinus extends MinusGeneticProperty(BodyMetallic)
-  case object BodyMetallic extends PlusMinusGene("Body Metallic", BodyMetallicPlus, BodyMetallicMinus, 5), HasDefiniteBounds, DontSave:
+  case object BodyMetallic extends PlusMinusGene("Body Metallic", BodyMetallicPlus, BodyMetallicMinus, 5), HasDefiniteBounds:
     def minBound: Float = body.minMetallic
     def maxBound: Float = body.maxMetallic
   
   case object BodyGlossPlus extends PlusGeneticProperty(BodyGloss)
   case object BodyGlossMinus extends MinusGeneticProperty(BodyGloss)
-  case object BodyGloss extends PlusMinusGene("Body Gloss", BodyGlossPlus, BodyGlossMinus, 5), HasDefiniteBounds, DontSave:
+  case object BodyGloss extends PlusMinusGene("Body Gloss", BodyGlossPlus, BodyGlossMinus, 5), HasDefiniteBounds:
     def minBound: Float = body.minGlossiness
     def maxBound: Float = body.maxGlossiness
 
 
   case object BodyEmissionColorRPlus extends PlusGeneticProperty(BodyEmissionColorR)
   case object BodyEmissionColorRMinus extends MinusGeneticProperty(BodyEmissionColorR)
-  case object BodyEmissionColorR extends PlusMinusGene("Body Emission Red", BodyEmissionColorRPlus, BodyEmissionColorRMinus, 5), HasDefiniteBounds, DontSave:
+  case object BodyEmissionColorR extends PlusMinusGene("Body Emission Red", BodyEmissionColorRPlus, BodyEmissionColorRMinus, 5), HasDefiniteBounds:
     def minBound: Float = body.minEmissionR
     def maxBound: Float = body.maxEmissionR
   
   case object BodyEmissionColorGPlus extends PlusGeneticProperty(BodyEmissionColorG)
   case object BodyEmissionColorGMinus extends MinusGeneticProperty(BodyEmissionColorG)
-  case object BodyEmissionColorG extends PlusMinusGene("Body Emission Green",BodyEmissionColorGPlus, BodyEmissionColorGMinus,  5), HasDefiniteBounds, DontSave:
+  case object BodyEmissionColorG extends PlusMinusGene("Body Emission Green",BodyEmissionColorGPlus, BodyEmissionColorGMinus,  5), HasDefiniteBounds:
     def minBound: Float = body.minEmissionG
     def maxBound: Float = body.maxEmissionG
   
   case object BodyEmissionColorBPlus extends PlusGeneticProperty(BodyEmissionColorB)
   case object BodyEmissionColorBMinus extends MinusGeneticProperty(BodyEmissionColorB)
-  case object BodyEmissionColorB extends PlusMinusGene("Body Emission Blue",BodyEmissionColorBPlus, BodyEmissionColorBMinus,  5), HasDefiniteBounds, DontSave:
+  case object BodyEmissionColorB extends PlusMinusGene("Body Emission Blue",BodyEmissionColorBPlus, BodyEmissionColorBMinus,  5), HasDefiniteBounds:
     def minBound: Float = body.minEmissionB
     def maxBound: Float = body.maxEmissionB
   
   case object BodyColorRPlus extends PlusGeneticProperty(BodyColorR)
   case object BodyColorRMinus extends MinusGeneticProperty(BodyColorR)
-  case object BodyColorR extends PlusMinusGene("Body Color Red",BodyColorRPlus, BodyColorRMinus,  5), HasDefiniteBounds, DontSave:
+  case object BodyColorR extends PlusMinusGene("Body Color Red",BodyColorRPlus, BodyColorRMinus,  5), HasDefiniteBounds:
     def minBound: Float = body.minBaseR
     def maxBound: Float = body.maxBaseR
   
   case object BodyColorGPlus extends PlusGeneticProperty(BodyColorG)
   case object BodyColorGMinus extends MinusGeneticProperty(BodyColorG)
-  case object BodyColorG extends PlusMinusGene("Body Color Green",BodyColorGPlus, BodyColorGMinus,  5), HasDefiniteBounds, DontSave:
+  case object BodyColorG extends PlusMinusGene("Body Color Green",BodyColorGPlus, BodyColorGMinus,  5), HasDefiniteBounds:
     def minBound: Float = body.minBaseG
     def maxBound: Float = body.maxBaseG
   
   case object BodyColorBPlus extends PlusGeneticProperty(BodyColorB)
   case object BodyColorBMinus extends MinusGeneticProperty(BodyColorB)
-  case object BodyColorB extends PlusMinusGene("Body Color Blue",BodyColorBPlus, BodyColorBMinus,  5), HasDefiniteBounds, DontSave:
+  case object BodyColorB extends PlusMinusGene("Body Color Blue",BodyColorBPlus, BodyColorBMinus,  5), HasDefiniteBounds:
     def minBound: Float = body.minBaseB
     def maxBound: Float = body.maxBaseB
 
   
   case object LegMetallicPlus extends PlusGeneticProperty(LegMetallic)
   case object LegMetallicMinus extends MinusGeneticProperty(LegMetallic)
-  case object LegMetallic extends PlusMinusGene("Leg Metallic",LegMetallicPlus, LegMetallicMinus,  5), HasDefiniteBounds, DontSave:
+  case object LegMetallic extends PlusMinusGene("Leg Metallic",LegMetallicPlus, LegMetallicMinus,  5), HasDefiniteBounds:
     def minBound: Float = legs.minMetallic
     def maxBound: Float = legs.maxMetallic
 
   
   case object LegGlossPlus extends PlusGeneticProperty(LegGloss)
   case object LegGlossMinus extends MinusGeneticProperty(LegGloss)
-  case object LegGloss extends PlusMinusGene("Leg Gloss",LegGlossPlus, LegGlossMinus,  5), HasDefiniteBounds, DontSave:
+  case object LegGloss extends PlusMinusGene("Leg Gloss",LegGlossPlus, LegGlossMinus,  5), HasDefiniteBounds:
     def minBound: Float = legs.minGlossiness
     def maxBound: Float = legs.maxGlossiness
   
   case object LegEmissionColorRPlus extends PlusGeneticProperty(LegEmissionColorR)
   case object LegEmissionColorRMinus extends MinusGeneticProperty(LegEmissionColorR)
-  case object LegEmissionColorR extends PlusMinusGene("Leg Emission Red",LegEmissionColorRPlus, LegEmissionColorRMinus,  5), HasDefiniteBounds, DontSave:
+  case object LegEmissionColorR extends PlusMinusGene("Leg Emission Red",LegEmissionColorRPlus, LegEmissionColorRMinus,  5), HasDefiniteBounds:
     def minBound: Float = legs.minEmissionR
     def maxBound: Float = legs.maxEmissionR
   
   case object LegEmissionColorGPlus extends PlusGeneticProperty(LegEmissionColorG)
   case object LegEmissionColorGMinus extends MinusGeneticProperty(LegEmissionColorG)
-  case object LegEmissionColorG extends PlusMinusGene("Leg Emission Green",LegEmissionColorGPlus, LegEmissionColorGMinus, 5), HasDefiniteBounds, DontSave:
+  case object LegEmissionColorG extends PlusMinusGene("Leg Emission Green",LegEmissionColorGPlus, LegEmissionColorGMinus, 5), HasDefiniteBounds:
     def minBound: Float = legs.minEmissionG
     def maxBound: Float = legs.maxEmissionG
   
   case object LegEmissionColorBPlus extends PlusGeneticProperty(LegEmissionColorB)
   case object LegEmissionColorBMinus extends MinusGeneticProperty(LegEmissionColorB)
-  case object LegEmissionColorB extends PlusMinusGene("Leg Emission Blue",LegEmissionColorBPlus, LegEmissionColorBMinus,  5), HasDefiniteBounds, DontSave:
+  case object LegEmissionColorB extends PlusMinusGene("Leg Emission Blue",LegEmissionColorBPlus, LegEmissionColorBMinus,  5), HasDefiniteBounds:
     def minBound: Float = legs.minEmissionB
     def maxBound: Float = legs.maxEmissionB
   
   case object LegColorRPlus extends PlusGeneticProperty(LegColorR)
   case object LegColorRMinus extends MinusGeneticProperty(LegColorR)
-  case object LegColorR extends PlusMinusGene("Leg Color Red",LegColorRPlus, LegColorRMinus,  5), HasDefiniteBounds, DontSave:
+  case object LegColorR extends PlusMinusGene("Leg Color Red",LegColorRPlus, LegColorRMinus,  5), HasDefiniteBounds:
     def minBound: Float = legs.minBaseR
     def maxBound: Float = legs.maxBaseR
   
   case object LegColorGPlus extends PlusGeneticProperty(LegColorG)
   case object LegColorGMinus extends MinusGeneticProperty(LegColorG)
-  case object LegColorG extends PlusMinusGene("Leg Color Green",LegColorGPlus, LegColorGMinus,  5), HasDefiniteBounds, DontSave:
+  case object LegColorG extends PlusMinusGene("Leg Color Green",LegColorGPlus, LegColorGMinus,  5), HasDefiniteBounds:
     def minBound: Float = legs.minBaseG
     def maxBound: Float = legs.maxBaseG
   
   case object LegColorBPlus extends PlusGeneticProperty(LegColorB)
   case object LegColorBMinus extends MinusGeneticProperty(LegColorB)
-  case object LegColorB extends PlusMinusGene("Leg Color Blue",LegColorBPlus, LegColorBMinus,  5), HasDefiniteBounds, DontSave:
+  case object LegColorB extends PlusMinusGene("Leg Color Blue",LegColorBPlus, LegColorBMinus,  5), HasDefiniteBounds:
     def minBound: Float = legs.minBaseB
     def maxBound: Float = legs.maxBaseB
   
   case object NoseEarMetallicPlus extends PlusGeneticProperty(NoseEarMetallic)
   case object NoseEarMetallicMinus extends MinusGeneticProperty(NoseEarMetallic)
-  case object NoseEarMetallic extends PlusMinusGene("Nose/Ear Metallic",NoseEarMetallicPlus, NoseEarMetallicMinus,  5), HasDefiniteBounds, DontSave:
+  case object NoseEarMetallic extends PlusMinusGene("Nose/Ear Metallic",NoseEarMetallicPlus, NoseEarMetallicMinus,  5), HasDefiniteBounds:
     def minBound: Float = earsNose.minMetallic
     def maxBound: Float = earsNose.maxMetallic
   
   case object NoseEarGlossPlus extends PlusGeneticProperty(NoseEarGloss)
   case object NoseEarGlossMinus extends MinusGeneticProperty(NoseEarGloss)
-  case object NoseEarGloss extends PlusMinusGene("Nose/Ear Gloss",NoseEarGlossPlus, NoseEarGlossMinus,  5), HasDefiniteBounds, DontSave:
+  case object NoseEarGloss extends PlusMinusGene("Nose/Ear Gloss",NoseEarGlossPlus, NoseEarGlossMinus,  5), HasDefiniteBounds:
     def minBound: Float = earsNose.minGlossiness
     def maxBound: Float = earsNose.maxGlossiness
   
   case object NoseEarEmissionColorRPlus extends PlusGeneticProperty(NoseEarEmissionColorR)
   case object NoseEarEmissionColorRMinus extends MinusGeneticProperty(NoseEarEmissionColorR)
-  case object NoseEarEmissionColorR extends PlusMinusGene("Nose/Ear Emission Red",NoseEarEmissionColorRPlus, NoseEarEmissionColorRMinus,  5), HasDefiniteBounds, DontSave:
+  case object NoseEarEmissionColorR extends PlusMinusGene("Nose/Ear Emission Red",NoseEarEmissionColorRPlus, NoseEarEmissionColorRMinus,  5), HasDefiniteBounds:
     def minBound: Float = earsNose.minEmissionR
     def maxBound: Float = earsNose.maxEmissionR
   
   case object NoseEarEmissionColorGPlus extends PlusGeneticProperty(NoseEarEmissionColorG)
   case object NoseEarEmissionColorGMinus extends MinusGeneticProperty(NoseEarEmissionColorG)
-  case object NoseEarEmissionColorG extends PlusMinusGene("Nose/Ear Emission Green",NoseEarEmissionColorGPlus, NoseEarEmissionColorGMinus,  5), HasDefiniteBounds, DontSave:
+  case object NoseEarEmissionColorG extends PlusMinusGene("Nose/Ear Emission Green",NoseEarEmissionColorGPlus, NoseEarEmissionColorGMinus,  5), HasDefiniteBounds:
     def minBound: Float = earsNose.minEmissionG
     def maxBound: Float = earsNose.maxEmissionG
   
   case object NoseEarEmissionColorBPlus extends PlusGeneticProperty(NoseEarEmissionColorB)
   case object NoseEarEmissionColorBMinus extends MinusGeneticProperty(NoseEarEmissionColorB)
-  case object NoseEarEmissionColorB extends PlusMinusGene("Nose/Ear Emission Blue",NoseEarEmissionColorBPlus, NoseEarEmissionColorBMinus,  5), HasDefiniteBounds, DontSave:
+  case object NoseEarEmissionColorB extends PlusMinusGene("Nose/Ear Emission Blue",NoseEarEmissionColorBPlus, NoseEarEmissionColorBMinus,  5), HasDefiniteBounds:
     def minBound: Float = earsNose.minEmissionB
     def maxBound: Float = earsNose.maxEmissionB
   
   case object NoseEarColorRPlus extends PlusGeneticProperty(NoseEarColorR)
   case object NoseEarColorRMinus extends MinusGeneticProperty(NoseEarColorR)
-  case object NoseEarColorR extends PlusMinusGene("Nose/Ear Color Red",NoseEarColorRPlus, NoseEarColorRMinus,  5), HasDefiniteBounds, DontSave:
+  case object NoseEarColorR extends PlusMinusGene("Nose/Ear Color Red",NoseEarColorRPlus, NoseEarColorRMinus,  5), HasDefiniteBounds:
     def minBound: Float = earsNose.minBaseR
     def maxBound: Float = earsNose.maxBaseR
   
   case object NoseEarColorGPlus extends PlusGeneticProperty(NoseEarColorG)
   case object NoseEarColorGMinus extends MinusGeneticProperty(NoseEarColorG)
-  case object NoseEarColorG extends PlusMinusGene("Nose/Ear Color Green",NoseEarColorGPlus, NoseEarColorGMinus,  5), HasDefiniteBounds, DontSave:
+  case object NoseEarColorG extends PlusMinusGene("Nose/Ear Color Green",NoseEarColorGPlus, NoseEarColorGMinus,  5), HasDefiniteBounds:
     def minBound: Float = earsNose.minBaseG
     def maxBound: Float = earsNose.maxBaseG
   
   case object NoseEarColorBPlus extends PlusGeneticProperty(NoseEarColorB)
   case object NoseEarColorBMinus extends MinusGeneticProperty(NoseEarColorB)
-  case object NoseEarColorB extends PlusMinusGene("Nose/Ear Color Blue",NoseEarColorBPlus, NoseEarColorBMinus,  5), HasDefiniteBounds, DontSave:
+  case object NoseEarColorB extends PlusMinusGene("Nose/Ear Color Blue",NoseEarColorBPlus, NoseEarColorBMinus,  5), HasDefiniteBounds:
     def minBound: Float = earsNose.minBaseB
     def maxBound: Float = earsNose.maxBaseB
   
   case object NoseModAPlus extends PlusGeneticProperty(NoseModA)
   case object NoseModAMinus extends MinusGeneticProperty(NoseModA)
-  case object NoseModA extends PlusMinusGene("Nose Size",NoseModAPlus, NoseModAMinus,  5)
+  case object NoseModA extends PlusMinusGene("Nose Size",NoseModAPlus, NoseModAMinus,  5), HasDefiniteBounds:
+    def minBound: Float = Dog.noseModAMin
+    def maxBound: Float = Dog.noseModAMax
   
   case object HornSizePlus extends PlusGeneticProperty(HornSize)
   case object HornSizeMinus extends MinusGeneticProperty(HornSize)
@@ -257,7 +261,7 @@ object GeneticProperty {
     def maxBound: Float = Dog.headSizeMax
     override def cap: Option[Float] = Some(Dog.headSizeCap)
   
-  case object HeadNumber extends PlainGeneticProperty("Head Number", 5, SDogGeneType.Super(1)), HasDefiniteBounds, DontSave:
+  case object HeadNumber extends PlainGeneticProperty("Head Number", 5, SDogGeneType.Super(1), integral = true), HasDefiniteBounds:
     def minBound: Float = Dog.headNumMin
     def maxBound: Float = Dog.headNumMax
     override def cap: Option[Float] = Some(Dog.headCap)
@@ -306,18 +310,18 @@ object GeneticProperty {
     def maxBound: Float = Dog.tailScaleMax
     override def cap: Option[Float] = Some(Dog.tailScaleCap)
   
-  case object TailNum extends PlainGeneticProperty("Tail Number", 5, SDogGeneType.Super(1)), HasDefiniteBounds, DontSave:
+  case object TailNum extends PlainGeneticProperty("Tail Number", 5, SDogGeneType.Super(1), integral = true), HasDefiniteBounds:
     def minBound: Float = Dog.tailNumMin
     def maxBound: Float = Dog.tailNumMax
   
   case object WingSizePlus extends PlusGeneticProperty(WingSize)
   case object WingSizeMinus extends MinusGeneticProperty(WingSize)
-  // for some reason doesn't use minus arg
+  // not super, so minus unneeded?
   case object WingSize extends PlusMinusGene("Wing Size",WingSizePlus, WingSizeMinus,  5), HasDefiniteBounds:
     def minBound: Float = Dog.wingScaleMin
     def maxBound: Float = Dog.wingScaleMax
   
-  case object WingNumber extends PlainGeneticProperty("Wing Number", 10, SDogGeneType.Super(1)), HasDefiniteBounds, DontSave:
+  case object WingNumber extends PlainGeneticProperty("Wing Number", 10, SDogGeneType.Super(1), integral = true), HasDefiniteBounds:
     def minBound: Float = Dog.wingNumberMin
     def maxBound: Float = Dog.wingNumberMax
   
@@ -372,13 +376,13 @@ object GeneticProperty {
     def minBound: Float = Dog.stanceWidthMin
     def maxBound: Float = Dog.stanceWidthMax
   
-  case object LegPairsFront extends PlainGeneticProperty("Front Leg Number", 15, SDogGeneType.Super(1)), HasDefiniteBounds, DontSave:
+  case object LegPairsFront extends PlainGeneticProperty("Front Leg Number", 15, SDogGeneType.Super(1), integral = true), HasDefiniteBounds:
     def minBound: Float = Dog.legNumberMin
     def maxBound: Float = Dog.legNumberMax
     // No cap, extra calc required
     // override def cap: Option[Float] = Some(Dog.legNumberHardCap)
     
-  case object LegPairsBack extends PlainGeneticProperty("Back Leg Number", 15, SDogGeneType.Super(1)), HasDefiniteBounds, DontSave:
+  case object LegPairsBack extends PlainGeneticProperty("Back Leg Number", 15, SDogGeneType.Super(1), integral = true), HasDefiniteBounds:
     def minBound: Float = Dog.legNumberMin
     def maxBound: Float = Dog.legNumberMax
     // No cap, Extra calc required
@@ -438,26 +442,33 @@ object GeneticProperty {
 
   // Pattern frequency not in terms of scale, but in randomness
   // such an odd name
-  case object PatternNum extends PlainGeneticProperty("Pattern Frequency", 5), HasDefiniteBounds:
+  case object PatternNum extends PlainGeneticProperty("Pattern Random Seed", 5, integral = true), HasDefiniteBounds:
     def minBound: Float = Dog.patternNumMin
     def maxBound: Float = Dog.patternNumMax
   case object PatternFlipX extends PlainGeneticProperty("Pattern Horz. Flip", 1, SDogGeneType.Looped(25))
   case object PatternFlipY extends PlainGeneticProperty("Pattern Vert. Flip", 1, SDogGeneType.Looped(25))
-  case object PatternInfo extends PlainGeneticProperty("Pattern Variation", 5, SDogGeneType.Looped(25))
+  case object PatternInfo extends PlainGeneticProperty("Pattern Variation", 5, SDogGeneType.Looped(25, discrete = false))
 
 
   val valueOf: Map[String, GeneticProperty] = util.Macros.summonSingletonMap[GeneticProperty]
 
-  val values: List[GeneticProperty] = valueOf.values.toList.sortBy(_.displayName)
+  val values: List[GeneticProperty] = util.Macros.fieldsOfObjOfKind[GeneticProperty](GeneticProperty)
 }
 
 // move stupid objects to delay inlining
 object PlusMinusGene:
   val valueOf: Map[String, PlusMinusGene] = util.Macros.summonSingletonMap[PlusMinusGene]
-  val values: List[PlusMinusGene] = valueOf.values.toList.sortBy(_.displayName)
 
 object Gene:
+  val genes: List[Gene] = util.Macros.fieldsOfObjOfKind[Gene](GeneticProperty)
   val valueOf: Map[String, Gene] = util.Macros.summonSingletonMap[Gene]
+  // integrals that don't need extra processing to display
+  val integralValues: List[PlainGeneticProperty] = List(
+    GeneticProperty.WingNumber,
+    GeneticProperty.TailNum,
+    GeneticProperty.HeadNumber,
+    GeneticProperty.PatternNum
+  )
   val floatValues: List[Gene] = List(
     GeneticProperty.NoseModA,
     GeneticProperty.HornSize,

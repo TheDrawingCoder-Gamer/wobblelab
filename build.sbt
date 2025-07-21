@@ -25,23 +25,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       "io.circe" %%% "circe-generic",
       "io.circe" %%% "circe-parser",
     ).map(_ % "0.14.1"),
-    libraryDependencies += "io.circe" %%% "circe-yaml-scalayaml" % "0.16.0",
-    Compile / sourceGenerators += Def.task {
-      val daFile = (Compile / sourceManaged).value / "wobblelab" / "doggenev12.scala"
-      val data = Files.readString(file("assets/genes_v12.yaml").toPath)
-      IO.write(daFile,
-        s"""
-          |package net.bulbyvr
-          |package wobblelab
-          |
-          |val GeneV12_yaml: String =
-          |\"\"\"
-          |$data
-          |\"\"\"
-          |""".stripMargin
-      )
-      Seq(daFile)
-    }.taskValue
+    libraryDependencies += "io.circe" %%% "circe-yaml-scalayaml" % "0.16.0"
   ).jsSettings(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-locales" % "1.2.0"
   )

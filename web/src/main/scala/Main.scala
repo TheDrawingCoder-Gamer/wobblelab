@@ -9,7 +9,7 @@ import cats.effect.syntax.all.*
 import fs2.*
 import fs2.concurrent.*
 import macros.imapCopied
-import net.bulbyvr.wobblelab.db.{CalculatedMaterial, MasterDogGene, TraitType}
+import net.bulbyvr.wobblelab.db.{CalculatedMaterial, Gene, MasterDogGene, TraitType}
 import org.scalajs.dom
 import dom.console
 import net.bulbyvr.wobblelab.util.ColorF
@@ -18,10 +18,8 @@ import scala.compiletime.{codeOf, constValue, erasedValue, error, summonInline}
 import scala.deriving.Mirror
 
 
-@experimental
 object Main extends IOWebApp {
   import net.bulbyvr.wobblelab.*
-  import RawDog.experimental.*
 
   inline def summonSingletonCases[T <: Tuple, A](inline typeName: Any): List[A] =
     inline erasedValue[T] match
@@ -76,16 +74,16 @@ object Main extends IOWebApp {
         p("Wing type: ", calculatedSignal.map(_.wingType.display)),
         p("Eye type: ", calculatedSignal.map(_.eyeType.displayName)),
         p("Mouth type: ", calculatedSignal.map(_.mouthType.displayName)),
-        p("Front leg pairs: ", calculatedSignal.map(_.frontLegPairs.toString)),
-        p("Back leg pairs: ", calculatedSignal.map(_.backLegPairs.toString)),
-        p("Wing number: ", calculatedSignal.map(_.wingNumber.toString)),
-        p("Tail number: ", calculatedSignal.map(_.tailNumber.toString)),
-        p("Head number: ", calculatedSignal.map(_.headNumber.toString)),
+        div(
+          children <-- calculatedSignal.map(_.integralItems.iterator.toList.map { (gene, value) =>
+            p(gene.displayName + ": ", value.toString)
+          })
+        ),
         matSection(dog, calculatedSignal.map(_.bodyMat), "Body", DogMaterialPart.Body),
         matSection(dog, calculatedSignal.map(_.legColor), "Legs", DogMaterialPart.Leg),
         matSection(dog, calculatedSignal.map(_.noseEarColor), "Nose/Ear", DogMaterialPart.NoseEar),
         div(
-          children <-- calculatedSignal.map(_.floatItems.toList.sortBy(_._1.displayName).map { (gene, value) =>
+          children <-- calculatedSignal.map(_.floatItems.iterator.toList.map { (gene, value) =>
             p(gene.displayName + ": ", value.value.toString, " ", (value.percentage * 100).toString + "%")
           })
         )
@@ -195,7 +193,8 @@ object Main extends IOWebApp {
         db.GeneticProperty.values.map { key =>
           strCompTextbox(key.displayName,
             SignallingRef.lens[IO, MasterDogGene, String](masterGene)
-                         (it => it.getGeneString(key).getOrElse(""),
+                         // ??????????
+                         (it => it.genes(key),
                            src => it => src.updatedGeneString(key, it).getOrElse(src)))
         }
       )
@@ -282,7 +281,6 @@ object Main extends IOWebApp {
   def render: Resource[IO, HtmlElement[IO]] = {
     for {
       blawg <- SignallingRef[IO].of(Dog.randy.asRawDog.get.toGameDog).toResource
-      // _ <- blawg.discrete.evalTap(it => IO.delay { console.log(it.masterGene.calculateGenes()) }).compile.drain.background
       selectedTab <- SignallingRef[IO].of(0).toResource
       freakyPanes =
         Vector(

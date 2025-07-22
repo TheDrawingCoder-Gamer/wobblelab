@@ -2,7 +2,7 @@ package net.bulbyvr
 package wobblelab.db
 
 
-enum DomRecGeneProperty(val displayName: String) {
+enum DomRecGeneProperty(val displayName: String) derives OrdinalEncoder, OrdinalDecoder {
   case None extends  DomRecGeneProperty("No Effect")
   case MissingFrontLeftLeg extends DomRecGeneProperty("Missing Front Left Leg")
   case MissingFrontRightLeg extends DomRecGeneProperty("Missing Front Right Leg")
@@ -38,7 +38,6 @@ enum DomRecGeneProperty(val displayName: String) {
   case LashesEyes extends DomRecGeneProperty("Lashes Eyes")
   case NoWings extends DomRecGeneProperty("No Wings")
   // this is what conservatives want...
-  // frankly, this is also what neoliberals want
   case MissingLeftWing extends DomRecGeneProperty("Missing Left Wing")
   // this is what liberals want...
   case MissingRightWing extends DomRecGeneProperty("Missing Right Wing")

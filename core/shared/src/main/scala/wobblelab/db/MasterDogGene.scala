@@ -4,9 +4,7 @@ package db
 
 
 
-import net.bulbyvr.wobblelab.db.MasterDogGene.separatorSymbol
-import net.bulbyvr.wobblelab.util.ColorF
-import net.bulbyvr.wobblelab.DogMaterialPart
+import net.bulbyvr.wobblelab.db.MasterDogGene.{minusString, randomSeedSize, separatorSymbol}
 
 import scala.collection.mutable as mut
 
@@ -15,50 +13,91 @@ case class RawGene(
                   domRecGene: String
                   )
 
-case class DogContext(age: DogAge)
-
 case class MasterDogGene
-  (randomSeed: String,
-  // This map WILL contain ALL cases of GeneticProperty
-   genes: Map[GeneticProperty, String],
-   domRecGenes: List[DomRecGene],
-   domRecPropertyStatus: Map[DomRecGeneProperty, Boolean]
+  ( randomSeed: String,
+    geneticHolders: Map[GeneticProperty, DogGeneHolder],
+    domRecGenes: List[DomRecGene],
+    domRecPropertyStatus: Map[DomRecGeneProperty, Boolean]
   ) {
-  def updatedGeneString(key: GeneticProperty, value: String): Option[MasterDogGene] = {
-    val isValid = !key.geneType.strictLength || key.defaultLen == value.length
-    Option.when(isValid):
-      val newHolders = genes.updated(key, value)
-      copy(
-        genes = newHolders
-      )
+  def getGeneString(key: GeneticProperty): Option[String] = {
+    geneticHolders.get(key).map {
+      case DogGeneHolder.Standard(geneString) => geneString
+      case DogGeneHolder.Super(geneString, _, _) => geneString
+      case l : DogGeneHolder.Looped => l.rawGene
+    }
   }
 
+  def updatedGeneString(key: GeneticProperty, value: String): MasterDogGene = {
+    val newHolders = geneticHolders.updatedWith(key) {
+      case Some(holder) => {
+        Some(
+          holder match {
+            case _: DogGeneHolder.Standard=> DogGeneHolder.Standard(value)
+            case e: DogGeneHolder.Super => e.copy(geneString = value)
+            case l: DogGeneHolder.Looped => l.copy(rawGene = value)
+          }
+        )
+      }
+      case None => None
 
-  def inferFloatFromGene(key: GeneticProperty & HasDefiniteBounds): Float = {
-    val r = getFloatFromGene(key, key.minBound, key.maxBound)
-    key.cap match
-      case Some(v) => math.min(r, v)
-      case _ => r
+    }
+    copy(
+      geneticHolders = newHolders
+    )
+  }
+  def getExpectedGeneSize(key: GeneticProperty): Int = {
+    geneticHolders.get(key).flatMap {
+      case s: DogGeneHolder.Super => Some(s.originalLength)
+      case _ => None
+    }.getOrElse(0)
+  }
+  def getDynamicSeparatedFloatFromGene(key: GeneticProperty, minVal: Float, maxVal: Float, negativeValue: Boolean = false): Option[Float] = {
+    getGeneString(key).map { geneString =>
+      val expectedGeneSize = getExpectedGeneSize(key)
+      val length = geneString.length
+      var num = maxVal + getMaxValIncrease(key) * (length - expectedGeneSize).toFloat
+      if (num < maxVal) {
+        // ???
+        num = maxVal
+      }
+      if (negativeValue && length != expectedGeneSize) {
+        num = maxVal
+      }
+      val floatFromGeneSequence = DogMath.getFloatFromGeneSequence(geneString, minVal, num)
+      floatFromGeneSequence
+    }
   }
 
-  def getFloatFromGene(key: GeneticProperty, minVal: Float, maxVal: Float): Float = {
-    key.geneType match
-      case SDogGeneType.Super(_) => DogMath.getDynamicFloatFromSequence(key, genes(key), minVal, maxVal).get
-      case _ => DogMath.getFloatFromGeneSequence(genes(key), minVal, maxVal)
+  def getDynamicSeparatedIntFromGene(key: GeneticProperty, minVal: Float, maxVal: Float): Option[Int] = {
+    getGeneString(key).map { geneString =>
+      val expectedGeneSize = getExpectedGeneSize(key)
+      val length = geneString.length
+      val flag = length >= expectedGeneSize
+      val maxVal2 = maxVal + getMaxValIncrease(key) * (length - expectedGeneSize).toFloat
+      val num = if (!flag) Math.round(minVal).toInt else Math.round(DogMath.getFloatFromGeneSequence(geneString, minVal, maxVal2))
+
+      num
+    }
   }
 
-  def getIntFromGene(key: GeneticProperty, minVal: Float, maxVal: Float): Int = {
-    key.geneType match
-      case SDogGeneType.Super(_) => DogMath.getDynamicIntFromSequence(key, genes(key), minVal, maxVal).get
-      case _ => Math.round(getFloatFromGene(key, minVal, maxVal))
+  def getFloatFromGene(key: GeneticProperty, minVal: Float, maxVal: Float): Option[Float] = {
+    getGeneString(key).map { geneString =>
+      val floatFromGeneSequence = DogMath.getFloatFromGeneSequence(geneString, minVal, maxVal)
+      floatFromGeneSequence
+    }
   }
 
-  def inferIntFromGene(key: GeneticProperty & HasDefiniteBounds): Int =
-    val r = getIntFromGene(key, key.minBound, key.maxBound)
-    key.cap match
-      case Some(v) => math.min(r, v.toInt)
-      case None => r
+  def getIntFromGene(key: GeneticProperty, minVal: Float, maxVal: Float): Option[Int] = {
+    getFloatFromGene(key, minVal, maxVal).map(Math.round)
+  }
 
+  def getMaxValIncrease(key: GeneticProperty): Float = {
+    geneticHolders.get(key).flatMap {
+      case s: DogGeneHolder.Super => Some(s.maxValIncrease)
+      case _ => None
+    }.getOrElse(0f)
+  }
+  
   def updateDomRec(idx: Int, kind: TraitType): MasterDogGene =
     val old = this.domRecGenes(idx)
     val daNew = old.copy(value = kind)
@@ -66,191 +105,18 @@ case class MasterDogGene
     val newMap = this.domRecPropertyStatus.updated(old.currentProperty, false).updated(daNew.currentProperty, true)
     this.copy(domRecGenes = newList, domRecPropertyStatus = newMap)
 
-  // TODO: this obviously is broken in some way
-  // FIXME!
-  def updatePlusMinus(prop: PlusMinusGene, value: Float, minVal: Float, maxVal: Float): MasterDogGene =
-    val n = value - minVal
-    val minusGene = if n < 0 then DogMath.maybeDynamicFloatToGeneSequence(prop.minus, math.abs(n), 0, minVal) else "0".repeat(prop.defaultLen)
-    val plusGene = if n < 0 then "0".repeat(prop.defaultLen) else DogMath.maybeDynamicFloatToGeneSequence(prop.plus, math.abs(n), 0, maxVal)
-    val newMap = genes.updated(prop.plus, plusGene).updated(prop.minus, minusGene)
-
-    this.copy(genes = newMap)
-
-  // If Prop is a super, then value is _unclamped_. Otherwise, value is clamped to range
-  def updateFloatValue(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): MasterDogGene =
-    val newValue =
-      prop.geneType match
-        case SDogGeneType.Super(_) => DogMath.dynamicFloatToGeneSequence(prop, value, minVal, maxVal).get
-        case _ => DogMath.floatToGeneSequence(value, minVal, maxVal, prop.defaultLen)
-
-    copy(genes = genes.updated(prop, newValue))
-
-
-  def updatePartMaterial(name: DogMaterialPart, mat: CalculatedMaterial): MasterDogGene =
-    import DogMaterialPart.*
-    val default = name match
-      case Body => Dog.defaultMaterials.body
-      case Leg => Dog.defaultMaterials.legs
-      case NoseEar => Dog.defaultMaterials.earsNose
-
-    import default.*
-
-    val propMap = this.genes.to(mut.HashMap)
-
-    val daName = name.toString
-
-    // this JUST WORKS:tm:
-    def addPlusOrMinus(prop: PlusMinusGene, minVal: Float, maxVal: Float, v: Float): Unit =
-      val n = v - minVal
-      if n < 0 then
-        val minusGene = DogMath.floatToGeneSequence(math.abs(n), 0, minVal, prop.defaultLen)
-        propMap.update(prop.plus, "0".repeat(prop.defaultLen))
-        propMap.update(prop.minus, minusGene)
-      else
-
-        val plusGene = DogMath.floatToGeneSequence(n, 0, maxVal, prop.defaultLen)
-        propMap.update(prop.plus, plusGene)
-        propMap.update(prop.minus, "0".repeat(prop.defaultLen))
-
-
-    addPlusOrMinus(PlusMinusGene.valueOf(daName + "Metallic"), minMetallic, maxMetallic, mat.metallic)
-    addPlusOrMinus(PlusMinusGene.valueOf(daName + "Gloss"), minGlossiness, maxGlossiness, mat.glossiness)
-    addPlusOrMinus(PlusMinusGene.valueOf(daName + "ColorR"), minBaseR, maxBaseR, mat.base.r)
-    addPlusOrMinus(PlusMinusGene.valueOf(daName + "ColorG"), minBaseG, maxBaseG, mat.base.g)
-    addPlusOrMinus(PlusMinusGene.valueOf(daName + "ColorB"), minBaseB, maxBaseB, mat.base.b)
-    addPlusOrMinus(PlusMinusGene.valueOf(daName + "EmissionColorR"), minEmissionR, maxEmissionR, mat.emission.r)
-    addPlusOrMinus(PlusMinusGene.valueOf(daName + "EmissionColorG"), minEmissionG, maxEmissionG, mat.emission.g)
-    addPlusOrMinus(PlusMinusGene.valueOf(daName + "EmissionColorB"), minEmissionB, maxEmissionB, mat.emission.b)
-
-    copy(genes = propMap.toMap)
-
-
-  def getPlusMinus(prop: PlusMinusGene, minVal: Float, maxVal: Float): Float = {
-    val plusValue = getFloatFromGene(prop.plus, 0, maxVal)
-    // minusValue is
-    val minusValue = getFloatFromGene(prop.minus, 0, minVal)
-    plusValue - minusValue
-  }
-
-  def inferPlusMinus(prop: PlusMinusGene & HasDefiniteBounds): Float =
-    val r = getPlusMinus(prop, prop.minBound, prop.maxBound)
-    prop.cap match
-      case Some(c) => math.min(r, c)
-      case None => r
-
-  def getValue(prop: Gene, minVal: Float, maxVal: Float): Float =
-    prop match
-      case x: PlusMinusGene => getPlusMinus(x, minVal, maxVal)
-      case x: GeneticProperty => getFloatFromGene(x, minVal, maxVal)
-
-  // minVal and maxVal's meanings are different depending on plusMinus vs. normal
-  def getPercent(prop: Gene, minVal: Float, maxVal: Float): Float =
-    prop match
-      case x: PlusMinusGene =>
-        // minVal is how far _left_ on the number line we can go,
-        // maxVal is how far _right_
-        val res = getPlusMinus(x, minVal, maxVal)
-        val percent = (res + minVal) / (maxVal + minVal)
-        percent
-      case x: GeneticProperty =>
-        // minVal and maxVal are bounds
-        val res = getFloatFromGene(x, minVal, maxVal)
-        val percent = (res - minVal) / (maxVal - minVal)
-        percent
-
-  def percentToValue(prop: Gene, percent: Float)(using DogContext): Option[Float] =
-    boundsFor(prop).map: (minVal, maxVal) =>
-      prop match
-        case _: PlusMinusGene =>
-          (percent * (minVal + maxVal)) - minVal
-        case _: GeneticProperty =>
-          (percent * (maxVal - minVal)) + minVal
-
-  def updatedPercent(prop: Gene, percent: Float)(using DogContext): Option[MasterDogGene] =
-    percentToValue(prop, percent).map: v =>
-      val (minVal, maxVal) = boundsFor(prop).get
-      prop match
-        case x: PlusMinusGene =>
-          updatePlusMinus(x, v, minVal, maxVal)
-        case x: GeneticProperty =>
-          updateFloatValue(x, v, minVal, maxVal)
-
-  def inferPercent(prop: Gene & HasDefiniteBounds): Float =
-    getPercent(prop, prop.minBound, prop.maxBound)
-
-  def inferValue(prop: Gene & HasDefiniteBounds): Float =
-    prop match
-      case x: (PlusMinusGene & HasDefiniteBounds) => inferPlusMinus(x)
-      case x: (GeneticProperty & HasDefiniteBounds) => inferFloatFromGene(x)
-
-  private def calculatePlusMinus(name: String, minVal: Float, maxVal: Float): Float =
-    getPlusMinus(PlusMinusGene.valueOf(name), minVal, maxVal)
-
-
-  def getPartMaterial(part: DogMaterialPart): CalculatedMaterial =
-    val name = part.toString
-    val default = part match
-      case DogMaterialPart.Body => Dog.defaultMaterials.body
-      case DogMaterialPart.Leg => Dog.defaultMaterials.legs
-      case DogMaterialPart.NoseEar => Dog.defaultMaterials.earsNose
-    import default.*
-    val metallic = minMetallic + calculatePlusMinus(name + "Metallic", minMetallic, maxMetallic)
-    val glossiness = minGlossiness + calculatePlusMinus(name + "Gloss", minGlossiness, maxGlossiness)
-    val baseR = minBaseR + calculatePlusMinus(name + "ColorR", minBaseR, maxBaseR)
-    val baseG = minBaseG + calculatePlusMinus(name + "ColorG", minBaseG, maxBaseG)
-    val baseB = minBaseB + calculatePlusMinus(name + "ColorB", minBaseB, maxBaseB)
-    val base = ColorF(baseR, baseG, baseB)
-    val emiR = minEmissionR + calculatePlusMinus(name + "EmissionColorR", minEmissionR, maxEmissionR)
-    val emiG = minEmissionG + calculatePlusMinus(name + "EmissionColorG", minEmissionG, maxEmissionG)
-    val emiB = minEmissionB + calculatePlusMinus(name + "EmissionColorB", minEmissionB, maxEmissionB)
-    val emission = ColorF(emiR, emiG, emiB)
-    CalculatedMaterial(base, emission, metallic, glossiness)
-
-
-  def earType: EarType =
-    val earSharp = this.domRecPropertyStatus(DomRecGeneProperty.EarSharp)
-    val earConic = this.domRecPropertyStatus(DomRecGeneProperty.EarConic)
-    val earFilled = this.domRecPropertyStatus(DomRecGeneProperty.EarFilled)
-    val earFloppy = this.domRecPropertyStatus(DomRecGeneProperty.EarFloppy)
-    val earHalved = this.domRecPropertyStatus(DomRecGeneProperty.EarHalved)
-    val tiltedEars = this.domRecPropertyStatus(DomRecGeneProperty.TiltedEars)
-    val earPartialFlop = this.domRecPropertyStatus(DomRecGeneProperty.EarPartialFlop)
-
-    if (earFilled) {
-      if (tiltedEars) {
-        EarType.TypeB
-      } else if (earHalved) {
-        EarType.Blunt
-      } else {
-        EarType.TypeA
-      }
-    } else if (earSharp && earConic && earHalved)
-      EarType.Twisted
-    else if (earSharp && earFloppy)
-      EarType.Bulbous
-    else if (earSharp)
-      EarType.Cross
-    else if (earFloppy)
-      EarType.Bent
-    else if (earConic)
-      EarType.Horn
-    else if (earPartialFlop)
-      EarType.Wavy
-    else
-      EarType.Shepherd
-
-  def boundsFor(prop: Gene)(using dog: DogContext): Option[(Float, Float)] =
-    prop match
-      case x: AgeBasedBounds => Some((x.minBound, DogMath.ageModifiedValue(x.puppyMax, x.maxBound, dog.age)))
-      case x: HasDefiniteBounds => Some((x.minBound, x.maxBound))
-      case GeneticProperty.EarModA =>
-        val earKind = this.earType
-        val bounds = Dog.earModA(earKind)
-        Some((bounds.min, bounds.max))
-
-      case _ => None
-
-  def calculateGenes()(using dog: DogContext): CalculatedGenes = {
+  def calculateGenes(): CalculatedGenes = {
+    def calculatePlusMinus(key: String, minVal: Float, maxVal: Float, isSuper: Boolean = true): Float = {
+      val plusProp = GeneticProperty.valueOf(key + MasterDogGene.plusString)
+      val minusProp = GeneticProperty.valueOf(key + MasterDogGene.minusString)
+      val plusValue = if (isSuper) getDynamicSeparatedFloatFromGene(plusProp, 0, maxVal) else getFloatFromGene(plusProp, 0, maxVal)
+      val minusValue = if (isSuper) getDynamicSeparatedFloatFromGene(minusProp, 0, minVal, true) else getFloatFromGene(minusProp, 0, minVal)
+      plusValue.get - minusValue.get
+    }
+    def calculateStandard(key: GeneticProperty, minVal: Float, maxVal: Float, isSuper: Boolean = true): Float = {
+      val value = if (isSuper) getDynamicSeparatedFloatFromGene(key, minVal, maxVal) else getFloatFromGene(key, minVal, maxVal)
+      value.get
+    }
     val wingType = {
       val noWings = this.domRecPropertyStatus(DomRecGeneProperty.NoWings)
       val alignmentGood = this.domRecPropertyStatus(DomRecGeneProperty.AlignmentGood)
@@ -304,7 +170,38 @@ case class MasterDogGene
         NoseType.TypeA
     }
 
-    val earType = this.earType
+    val earType = {
+      val earSharp = this.domRecPropertyStatus(DomRecGeneProperty.EarSharp)
+      val earConic = this.domRecPropertyStatus(DomRecGeneProperty.EarConic)
+      val earFilled = this.domRecPropertyStatus(DomRecGeneProperty.EarFilled)
+      val earFloppy = this.domRecPropertyStatus(DomRecGeneProperty.EarFloppy)
+      val earHalved = this.domRecPropertyStatus(DomRecGeneProperty.EarHalved)
+      val tiltedEars = this.domRecPropertyStatus(DomRecGeneProperty.TiltedEars)
+      val earPartialFlop = this.domRecPropertyStatus(DomRecGeneProperty.EarPartialFlop)
+
+      if (earFilled) {
+        if (tiltedEars) {
+          EarType.TypeB
+        } else if (earHalved) {
+          EarType.Blunt
+        } else {
+          EarType.TypeA
+        }
+      } else if (earSharp && earConic && earHalved)
+        EarType.Twisted
+      else if (earSharp && earFloppy)
+        EarType.Bulbous
+      else if (earSharp)
+        EarType.Cross
+      else if (earFloppy)
+        EarType.Bent
+      else if (earConic)
+        EarType.Horn
+      else if (earPartialFlop)
+        EarType.Wavy
+      else
+        EarType.Shepherd
+    }
     val hornType = {
       val hornsCenter = this.domRecPropertyStatus(DomRecGeneProperty.HornsCenter)
       val hornsTraditional = this.domRecPropertyStatus(DomRecGeneProperty.HornsTraditional)
@@ -380,13 +277,19 @@ case class MasterDogGene
       else
         TailType.Plume
     }
+    val headNumber =
+      math.min(this.getDynamicSeparatedIntFromGene(GeneticProperty.HeadNumber, Dog.headNumMin, Dog.headNumMax).get, Dog.headCap)
+    val tailNumber =
+      this.getDynamicSeparatedIntFromGene(GeneticProperty.TailNum, Dog.tailNumMin, Dog.tailNumMax).get
     var frontLegPairs =
       math.max(1,
-        math.floor(this.inferFloatFromGene(GeneticProperty.LegPairsFront) / Dog.legNumberIncreaseRate).toInt
+        math.floor(this.getDynamicSeparatedFloatFromGene(GeneticProperty.LegPairsFront, Dog.legNumberMin, Dog.legNumberMax).get / Dog.legNumberIncreaseRate).toInt
       )
     var backLegPairs =
       math.max(1,
-        math.floor(this.inferFloatFromGene(GeneticProperty.LegPairsBack) / Dog.legNumberIncreaseRate).toInt
+        math.floor(this
+          .getDynamicSeparatedFloatFromGene(GeneticProperty.LegPairsBack, Dog.legNumberMin, Dog.legNumberMax)
+          .get / Dog.legNumberIncreaseRate).toInt
       )
     
     if (backLegPairs + frontLegPairs > Dog.legNumberHardCap) {
@@ -410,7 +313,9 @@ case class MasterDogGene
       frontLegPairs = 1
     if (backLegPairs < 1)
       backLegPairs = 1
-
+      
+    val wingNumber =
+      this.getDynamicSeparatedIntFromGene(GeneticProperty.WingNumber, Dog.wingNumberMin, Dog.wingNumberMax).get
 
     val eyeType = {
       val eyelids = this.domRecPropertyStatus(DomRecGeneProperty.Eyelids)
@@ -473,64 +378,50 @@ case class MasterDogGene
       val mouthMissingTeeth = this.domRecPropertyStatus(DomRecGeneProperty.MouthMissingTeeth)
 
       if (teeth && mouthNeutral)
-        MouthType.Standard
+        0
       else if (vMouth && openMouth)
-        MouthType.Ah
+        3
       else if (teeth && mouthPointed)
-        MouthType.Diamond
+        6
       else if (teeth && mouthCutoff)
-        MouthType.Wise
+        7
       else if (teeth && mouthWiggle)
-        MouthType.Wobbly
+        13
       else if (teeth && mouthFrown)
-        MouthType.Boom
+        4
       else if (teeth && mouthSmile)
-        MouthType.Smug
+        // MouthType.Smug
+        10
       else if (mouthMissingTeeth && mouthPointed)
-        MouthType.Toothy
+        11
       else if (mouthMissingTeeth)
-        MouthType.MouthBreather
+        8
       else if (mouthNeutral && !openMouth)
-        MouthType.Blank
+        12
       else if (mouthCheeks)
-        MouthType.Cheeky
+        5
       else if (vMouth)
-        MouthType.Simple
+        2
       else if (mouthFrown)
-        MouthType.Pointed
+        9
       else
-        MouthType.MouthNone
+        1
     }
 
-    val floatMap = mut.LinkedHashMap[Gene, CalculatedValue]()
-    val integralMap = mut.LinkedHashMap[Gene, Int]()
+    val floatMap = mut.Map[String, Float]()
 
-    Gene.integralValues.foreach:
-      case x: HasDefiniteBounds =>
-        integralMap(x) = inferIntFromGene(x)
-      case _ => ()
 
-    integralMap(GeneticProperty.LegPairsFront) = frontLegPairs
-    integralMap(GeneticProperty.LegPairsBack) = backLegPairs
-
-    Gene.floatValues.foreach: x =>
-      this.boundsFor(x) match
-        case Some(v) =>
-          floatMap(x) = CalculatedValue(getValue(x, v._1, v._2), getPercent(x, v._1, v._2))
-        case _ => ()
-    
-
-    
-    val bodyMat = getPartMaterial(DogMaterialPart.Body)
-    val legMat = getPartMaterial(DogMaterialPart.Leg)
-    val noseEarMat = getPartMaterial(DogMaterialPart.NoseEar)
 
     CalculatedGenes(
-      bodyMat = bodyMat,
-      legColor = legMat,
-      noseEarColor = noseEarMat,
-      floatItems = floatMap.to(collection.immutable.ListMap),
-      integralItems = integralMap.to(collection.immutable.ListMap),
+      bodyMat = CalculatedMaterial.DEFAULT,
+      legColor = CalculatedMaterial.DEFAULT,
+      noseEarColor = CalculatedMaterial.DEFAULT,
+      floatItems = floatMap.toMap,
+      headNumber = headNumber,
+      tailNumber = tailNumber,
+      wingNumber = wingNumber,
+      frontLegPairs = frontLegPairs,
+      backLegPairs = backLegPairs,
       earType = earType,
       hornType = hornType,
       hornPlacement = hornPlacement,
@@ -538,7 +429,7 @@ case class MasterDogGene
       tailType = tailType,
       wingType = wingType,
       eyeType = eyeType,
-      mouthType = mouthType
+      mouthType = MouthType.fromOrdinal(mouthType)
     )
   }
 
@@ -546,29 +437,33 @@ case class MasterDogGene
   def getRawString: RawGene = {
     val stringBuilder = new mut.StringBuilder()
     stringBuilder.append(randomSeed)
-    for (gene <- Gene.genes) {
-      gene.geneType match
-        case SDogGeneType.Super(_) => ()
-        case _ =>
-          gene match
-            case x: PlusMinusGene =>
-              stringBuilder.append(genes(x.plus))
-              stringBuilder.append(genes(x.minus))
-            case x: PlainGeneticProperty =>
-              stringBuilder.append(genes(x))
+    for (gene <- GenesDb.genesDb.dogGenes) {
+      if (gene.geneType != DogGeneType.Super) {
+        val key = gene.key
+        if (gene.plusMinus.b) {
+          val key2 = key + MasterDogGene.plusString
+          val key3 = key + MasterDogGene.minusString
+          stringBuilder.append(getGeneString(GeneticProperty.valueOf(key2)).get)
+          stringBuilder.append(getGeneString(GeneticProperty.valueOf(key3)).get)
+        } else {
+          stringBuilder.append(getGeneString(GeneticProperty.valueOf(key)).get)
+        }
+      }
     }
-    Gene.genes.foreach { gene =>
-      gene.geneType match
-        case SDogGeneType.Super(_) =>
+    GenesDb.genesDb.dogGenes.foreach { gene =>
+      if (gene.geneType == DogGeneType.Super) {
+        stringBuilder.append(separatorSymbol)
+        val key = gene.key
+        if (gene.plusMinus.b) {
+          val plusKey = gene.key + MasterDogGene.plusString
+          val minusKey = gene.key + MasterDogGene.minusString
+          stringBuilder.append(getGeneString(GeneticProperty.valueOf(plusKey)).get)
           stringBuilder.append(separatorSymbol)
-          gene match
-            case x: PlusMinusGene =>
-              stringBuilder.append(genes(x.plus))
-              stringBuilder.append(separatorSymbol)
-              stringBuilder.append(genes(x.minus))
-            case x: PlainGeneticProperty =>
-              stringBuilder.append(genes(x))
-        case _ => ()
+          stringBuilder.append(getGeneString(GeneticProperty.valueOf(minusKey)).get)
+        } else {
+          stringBuilder.append(getGeneString(GeneticProperty.valueOf(key)).get)
+        }
+      }
     }
 
     val dogGene = stringBuilder.toString
@@ -586,6 +481,8 @@ case class MasterDogGene
 object MasterDogGene {
   val randomSeedSize = 10
   val separatorSymbol = "|"
+  val plusString = "Plus"
+  val minusString = "Minus"
 
   def fromGenes(inDogGene: String, domRecGene: String): MasterDogGene = {
     var dogGene = inDogGene
@@ -593,9 +490,9 @@ object MasterDogGene {
     var currentSuperIndex = 0
     var currentStandardIndex = randomSeedSize
     // val geneValues = mut.Map[GeneticProperty, DogGene]()
-    val geneticHolders = mut.Map[GeneticProperty, String]()
+    val geneticHolders = mut.Map[GeneticProperty, DogGeneHolder]()
     val domRecPropertyStatus = mut.Map[DomRecGeneProperty, Boolean]()
-    val domRecGenes = domRecGene.grouped(2).zip(DomRecGeneStatic.values).map { (it, domRecGene) =>
+    val domRecGenes = domRecGene.grouped(2).zip(GenesDb.genesDb.domRecGenes).map { (it, domRecGene) =>
       val ttype
         = if (it(0) != it(1))
           then TraitType.Het
@@ -611,33 +508,74 @@ object MasterDogGene {
       domRecPropertyStatus(domRecGene.currentProperty) = true
     }
 
-    def mapGene(gene: GeneticProperty): Unit =
-      gene.geneType match
-        case SDogGeneType.Super(_) =>
-          var num = dogGene.indexOf(separatorSymbol, currentSuperIndex) + 1
-          if (num == 0) {
-            // WHAT THE FREAK
-            println("Missing super type, fixie wixieing")
-            dogGene += generateBaseGeneOfSize(gene.defaultLen)
-            num = dogGene.indexOf(separatorSymbol, currentSuperIndex) + 1
-          }
-          var num2 = dogGene.indexOf(separatorSymbol, num)
-          if (num2 == -1) {
-            num2 = dogGene.length
-          }
+    def mapSuperGene(gene: DogGeneTemplate, optionalKeyAddition: String = "", minus: Boolean = false): Unit = {
+      var num = dogGene.indexOf(separatorSymbol, currentSuperIndex) + 1
+      if (num == 0) {
+        // WHAT THE FREAK
+        println("what the skibidi...")
+        dogGene += generateBaseGeneOfSize(gene.length)
+        num = dogGene.indexOf(separatorSymbol, currentSuperIndex) + 1
+      }
+      var num2 = dogGene.indexOf(separatorSymbol, num)
+      if (num2 == -1) {
+        num2 = dogGene.length
+      }
+      val freakyProperty = GeneticProperty.valueOf(gene.key + optionalKeyAddition)
+      var newMaxValIncrease = gene.superMutationValueAddition
+      if (minus) {
+        newMaxValIncrease = 0f
+      }
+      geneticHolders(freakyProperty) = DogGeneHolder.Super(dogGene.substring(num, num2), gene.length, newMaxValIncrease)
+      currentSuperIndex = num
+    }
+    def mapStandardGene(gene: DogGeneTemplate, optionalKeyAddition: String = ""): Unit = {
+      val freakyProperty = GeneticProperty.valueOf(gene.key + optionalKeyAddition)
+      geneticHolders(freakyProperty) = DogGeneHolder.Standard(dogGene.substring(currentStandardIndex, currentStandardIndex + gene.length))
+      currentStandardIndex += gene.length
+    }
+    def mapLoopedGene(gene: DogGeneTemplate, optionalKeyAddition: String = ""): Unit = {
+      var num = gene.loopCount
+      if (gene.dynamicLoopCount.b) {
+        // base game never calls this (yet)
+        ???
+      }
+      // may break if gene is old? i eepy
+      val value = DogGeneHolder.Looped(dogGene.substring(currentStandardIndex, currentStandardIndex + gene.length * num), gene.length, gene.discrete.b)
 
-          geneticHolders(gene) = dogGene.substring(num, num2)
-          currentSuperIndex = num
-        case _ =>
-          val value = dogGene.substring(currentStandardIndex, currentStandardIndex + gene.defaultLen)
-          geneticHolders(gene) = value
-          currentStandardIndex += gene.defaultLen
-    Gene.genes.foreach:
-      case x: PlusMinusGene =>
-        mapGene(x.plus)
-        mapGene(x.minus)
-      case x: PlainGeneticProperty =>
-        mapGene(x)
+      val freakyProperty = GeneticProperty.valueOf(gene.key + optionalKeyAddition)
+      geneticHolders(freakyProperty) = value
+      currentStandardIndex += gene.length * num
+    }
+    for (gene <- GenesDb.genesDb.dogGenes) {
+        gene.geneType match {
+          case DogGeneType.Standard => {
+            if (gene.plusMinus.b) {
+              mapStandardGene(gene, plusString)
+              mapStandardGene(gene, minusString)
+            } else {
+              mapStandardGene(gene)
+            }
+          }
+          case DogGeneType.Super => {
+            if (gene.plusMinus.b) {
+              mapSuperGene(gene, plusString)
+              // base game doesnt use minus arg???
+              mapSuperGene(gene, minusString)
+            } else {
+              mapSuperGene(gene)
+            }
+          }
+          case DogGeneType.Looped => {
+            if (gene.plusMinus.b) {
+              // this isn't used in the base game yet
+              mapLoopedGene(gene, plusString)
+              mapLoopedGene(gene, minusString)
+            } else {
+              mapLoopedGene(gene)
+            }
+          }
+        }
+    }
     MasterDogGene(dogGene.substring(0, randomSeedSize), geneticHolders.toMap, domRecGenes, domRecPropertyStatus.toMap)
   }
 

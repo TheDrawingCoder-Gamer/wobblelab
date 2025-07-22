@@ -55,16 +55,10 @@ object OrdinalEncoder {
     )
 }
 
-
-// Scala DogGeneType
-enum SDogGeneType {
+enum DogGeneType extends Enum[DogGeneType] derives OrdinalEncoder, OrdinalDecoder  {
   case Standard
-  case Super(maxValIncrease: Float)
-  case Looped(loopCount: Int, discrete: Boolean = true)
-  
-  def strictLength: Boolean = this match
-    case Standard | Looped(_, _) => true
-    case _ => false
+  case Super
+  case Looped
 }
 
 
@@ -98,3 +92,24 @@ given booleanFromIntCodec: Codec[BooleanFromInt] with {
   }
 }
 
+
+case class DogGeneTemplate
+  ( version: GeneVersion,
+    key: String,
+    readableName: String,
+    length: Int,
+    loopCount: Int,
+    superMutationValueAddition: Float,
+    geneType: DogGeneType,
+    geneCategory: DogGeneCategory,
+    geneSwapCategory: DogGeneSwapCategory,
+    customCurve: Json,
+    plusMinus: BooleanFromInt,
+    startAtLowestValue: BooleanFromInt,
+    applyMinusPropertyToStartingGene: BooleanFromInt,
+    discrete: BooleanFromInt,
+    dynamicLoopCount: BooleanFromInt
+  )
+given dogGeneCodec: Codec[DogGeneTemplate] = deriveCodec[DogGeneTemplate]
+
+case class DogGene(value: Float, minValue: Float, maxValue: Float, defaultMaxValue: Float)

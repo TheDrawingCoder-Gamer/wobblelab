@@ -25,7 +25,7 @@ case class MasterDogGene
    domRecPropertyStatus: Map[DomRecGeneProperty, Boolean]
   ) {
   def updatedGeneString(key: GeneticProperty, value: String): Option[MasterDogGene] = {
-    val isValid = !key.geneType.strictLength || key.defaultLen == value.length
+    val isValid = (!key.geneType.strictLength || key.defaultLen == value.length) && value.length <= DogMath.maxGeneLen
     Option.when(isValid):
       val newHolders = genes.updated(key, value)
       copy(
@@ -33,13 +33,6 @@ case class MasterDogGene
       )
   }
 
-  def getDynamicSeparatedFloatFromGene(key: GeneticProperty, minVal: Float, maxVal: Float): Option[Float] = {
-    DogMath.getDynamicFloatFromSequence(key, genes(key), minVal, maxVal)
-  }
-
-  def getDynamicSeparatedIntFromGene(key: GeneticProperty, minVal: Float, maxVal: Float): Option[Int] = {
-    DogMath.getDynamicIntFromSequence(key, genes(key), minVal, maxVal)
-  }
 
   def inferFloatFromGene(key: GeneticProperty & HasDefiniteBounds): Float = {
     val r = getFloatFromGene(key, key.minBound, key.maxBound)
@@ -73,12 +66,12 @@ case class MasterDogGene
     val newMap = this.domRecPropertyStatus.updated(old.currentProperty, false).updated(daNew.currentProperty, true)
     this.copy(domRecGenes = newList, domRecPropertyStatus = newMap)
 
-  def inferUpdatePlusMinus(prop: PlusMinusGene & HasDefiniteBounds, value: Float): MasterDogGene = updatePlusMinus(prop, value, prop.minBound, prop.maxBound)
-
+  // TODO: this obviously is broken in some way
+  // FIXME!
   def updatePlusMinus(prop: PlusMinusGene, value: Float, minVal: Float, maxVal: Float): MasterDogGene =
     val n = value - minVal
-    val minusGene = if n < 0 then DogMath.maybeDynamicFloatToGeneSequence(math.abs(n), 0, minVal, prop.defaultLen, !prop.geneType.strictLength) else "0".repeat(prop.defaultLen)
-    val plusGene = if n < 0 then "0".repeat(prop.defaultLen) else DogMath.maybeDynamicFloatToGeneSequence(math.abs(n), 0, maxVal, prop.defaultLen, !prop.geneType.strictLength)
+    val minusGene = if n < 0 then DogMath.maybeDynamicFloatToGeneSequence(prop.minus, math.abs(n), 0, minVal) else "0".repeat(prop.defaultLen)
+    val plusGene = if n < 0 then "0".repeat(prop.defaultLen) else DogMath.maybeDynamicFloatToGeneSequence(prop.plus, math.abs(n), 0, maxVal)
     val newMap = genes.updated(prop.plus, plusGene).updated(prop.minus, minusGene)
 
     this.copy(genes = newMap)
@@ -87,13 +80,11 @@ case class MasterDogGene
   def updateFloatValue(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): MasterDogGene =
     val newValue =
       prop.geneType match
-        case SDogGeneType.Super(_) => DogMath.dynamicFloatToGeneSequence(value, minVal, maxVal, prop.defaultLen)
+        case SDogGeneType.Super(_) => DogMath.dynamicFloatToGeneSequence(prop, value, minVal, maxVal).get
         case _ => DogMath.floatToGeneSequence(value, minVal, maxVal, prop.defaultLen)
 
     copy(genes = genes.updated(prop, newValue))
 
-  def inferUpdateFloatValue(prop: GeneticProperty & HasDefiniteBounds, value: Float): MasterDogGene =
-    updateFloatValue(prop, value, prop.minBound, prop.maxBound)
 
   def updatePartMaterial(name: DogMaterialPart, mat: CalculatedMaterial): MasterDogGene =
     import DogMaterialPart.*
@@ -108,6 +99,7 @@ case class MasterDogGene
 
     val daName = name.toString
 
+    // this JUST WORKS:tm:
     def addPlusOrMinus(prop: PlusMinusGene, minVal: Float, maxVal: Float, v: Float): Unit =
       val n = v - minVal
       if n < 0 then
@@ -165,6 +157,23 @@ case class MasterDogGene
         val res = getFloatFromGene(x, minVal, maxVal)
         val percent = (res - minVal) / (maxVal - minVal)
         percent
+
+  def percentToValue(prop: Gene, percent: Float)(using DogContext): Option[Float] =
+    boundsFor(prop).map: (minVal, maxVal) =>
+      prop match
+        case _: PlusMinusGene =>
+          (percent * (minVal + maxVal)) - minVal
+        case _: GeneticProperty =>
+          (percent * (maxVal - minVal)) + minVal
+
+  def updatedPercent(prop: Gene, percent: Float)(using DogContext): Option[MasterDogGene] =
+    percentToValue(prop, percent).map: v =>
+      val (minVal, maxVal) = boundsFor(prop).get
+      prop match
+        case x: PlusMinusGene =>
+          updatePlusMinus(x, v, minVal, maxVal)
+        case x: GeneticProperty =>
+          updateFloatValue(x, v, minVal, maxVal)
 
   def inferPercent(prop: Gene & HasDefiniteBounds): Float =
     getPercent(prop, prop.minBound, prop.maxBound)

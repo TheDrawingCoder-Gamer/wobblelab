@@ -221,7 +221,7 @@ object DogMath {
       return minVal
     }
     val num = getNumBinaryPermutations(gene.length) // get the max value of a value of this size
-    val num2: Float = getFloatFromBinaryString(gene) / num // turn into range from 0 to 1
+    val num2: Float = getFloatFromBinaryString(gene) / num.toFloat // turn into range from 0 to 1
     val num3 = maxVal - minVal // range
     val num4 = num2 * num3 + minVal
     val num5 = 0.1f // with weird clamping
@@ -236,24 +236,33 @@ object DogMath {
   }
   def floatToGeneSequence(value: Float, minVal: Float, maxVal: Float, len: Int): String =
     val perms = getNumBinaryPermutations(len)
-    val n = math.max(math.min(((value - minVal) / (maxVal - minVal)) * perms, perms), 0)
+    val n = math.max(math.min(((value - minVal) / (maxVal - minVal)) * perms.toFloat, perms.toFloat), 0)
 
     val s = java.lang.Long.toBinaryString(n.toLong)
     "0".repeat(len - s.length) ++ s
 
   // Dynamic floats are _unclamped_
-  def dynamicFloatToGeneSequence(value: Float, minVal: Float, maxVal: Float, defaultLen: Int): String =
-    val perms = getNumBinaryPermutations(defaultLen)
-    val n = ((value - minVal) / (maxVal - minVal)) * perms
+  // todo: test more rigorously
+  // within the ballpark? Error COULD be chalked up to rounding error,
+  // albeit 0.2 is a rather large rounding error
+  def dynamicFloatToGeneSequence(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): Option[String] =
+    prop.geneType match
+      case SDogGeneType.Super(maxValIncrease) =>
+        val perms = getNumBinaryPermutations(prop.defaultLen)
+        // i THINK this is the practical inverse of the maxValIncrease
+        // This encodes how much extra length we'll need to encode this number
+        var num = (value - maxVal) / maxValIncrease
 
-    val s = java.lang.Long.toBinaryString(n.toLong)
-    s
+        val n = ((value - minVal) / (maxVal - minVal)) * perms.toFloat
 
-  def maybeDynamicFloatToGeneSequence(value: Float, minVal: Float, maxVal: Float, len: Int, isDynamic: Boolean): String =
-    if isDynamic then
-      dynamicFloatToGeneSequence(value, minVal, maxVal, len)
-    else
-      floatToGeneSequence(value, minVal, maxVal, len)
+        val s = java.lang.Long.toBinaryString(n.toLong)
+        Some(s)
+      case _ => None
+
+  def maybeDynamicFloatToGeneSequence(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): String =
+    prop.geneType match
+      case SDogGeneType.Super(_) => dynamicFloatToGeneSequence(prop, value, minVal, maxVal).get
+      case _ => floatToGeneSequence(value, minVal, maxVal, prop.defaultLen)
 
   def ageModifiedValue(puppy: Float, adult: Float, age: DogAge): Float =
     if puppy < adult then
@@ -279,9 +288,6 @@ object DogMath {
         val floatFromGeneSequence = getFloatFromGeneSequence(gene, minVal, num)
         Some(floatFromGeneSequence)
       case _ => None
-
-  def inferDynamicFloatFromSequence(prop: GeneticProperty & HasDefiniteBounds, gene: String): Option[Float] =
-    getDynamicFloatFromSequence(prop, gene, prop.minBound, prop.maxBound)
 
 
 

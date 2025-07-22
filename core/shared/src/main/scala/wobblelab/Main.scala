@@ -3,10 +3,8 @@ package wobblelab
 
 import cats.parse.{Parser, Parser0}
 import cats.implicits.*
-import magic.{*, given}
 
 import java.text.DecimalFormat
-import scala.annotation.experimental
 import io.circe.syntax.*
 import io.circe.*
 import io.circe.Decoder.Result
@@ -597,37 +595,7 @@ case class DogGene0(
 }
 
 object DogGene0 {
-  @experimental
-  val parser : Parser0[DogGene0] = {
-    val sLen = 5
-    FunctionHelper.curried(DogGene0.apply).pure[Parser0]
-                  .ap(Parser.length(sLen * 2))
-                  .ap(ShinyGene.parser)
-                  .ap(ColorGene.parser)
-                  .ap(ShinyGene.parser)
-                  .ap(ColorGene.parser)
-                  .ap(ShinyGene.parser)
-                  .ap(ColorGene.parser)
-                  .ap(DualGene.parserGene0)
-                  .ap(DualGene.parserGene0)
-                  .ap(DualGene.parserGene0)
-                  .ap(DualGene.parserGene0)
-                  .ap(DualGene.parserGene0)
-                  .ap(DualGene.parserGene0)
-                  .ap(DualGene.parserGene0)
-                  .ap(DualGene.parserGene0)
-                  .ap(DualGene.parserGene0)
-                  .ap(DualGene.parserGene0)
-                  .ap(DualGene.parserGene0)
-                  .ap(ColorGene.parserPattern)
-                  .ap(Parser.length(sLen))
-                  .ap(ShinyGene.parser)
-                  .ap(Parser.length(sLen))
-                  .ap(Parser.length(sLen * 5))
-                  .ap(Parser.length(sLen * 5))
-                  .ap(Parser.length(sLen * 25))
-                  .ap(Parser.until0(Parser.char('|')) <* Parser.char('|'))
-  }
+
   def parse(s: String): Option[DogGene0] =
     var ss = s.toList
     def takeN(n: Int): String =
@@ -779,7 +747,7 @@ case class ShinyGene(
 object ShinyGene {
   val parser = {
     val sectionParser = Parser.length(5)
-    (sectionParser, sectionParser, sectionParser, sectionParser).mapN[Parser, ShinyGene](ShinyGene.apply)
+    (sectionParser, sectionParser, sectionParser, sectionParser).mapN(ShinyGene.apply)
   }
   val size: Int = 4 * 5
 }
@@ -832,9 +800,9 @@ object ColorGene {
     , sectionParser )
   }
   val parser : Parser[ColorGene] =
-    parserBase.mapN[Parser, ColorGene](ColorGene.apply)
+    parserBase.mapN(ColorGene.apply)
   val parserPattern: Parser[ColorGene] =
-    parserBase.mapN[Parser, ColorGene]( ( g, h, i, j, k, l, a, b, c, d, e, f) =>
+    parserBase.mapN( ( g, h, i, j, k, l, a, b, c, d, e, f) =>
         ColorGene(a, b, c, d, e, f, g, h, i, j, k, l) )
   def parsePattern(groups : Iterator[String]) : ColorGene = {
       val bRP = groups.next()
@@ -881,11 +849,11 @@ object DualGene {
   val size0: Int = 10
   val parserGene0 = {
     val sectionParser = Parser.length(5)
-    (sectionParser, sectionParser).mapN[Parser, DualGene](DualGene.apply)
+    (sectionParser, sectionParser).mapN(DualGene.apply)
   }
   val parserGene1 = {
     val sectionParser = Parser.until(Parser.char('|'))
-    (sectionParser <* Parser.char('|'), sectionParser <* Parser.char('|').backtrack.orElse(Parser.unit)).mapN[Parser, DualGene](DualGene.apply)
+    (sectionParser <* Parser.char('|'), sectionParser <* Parser.char('|').backtrack.orElse(Parser.unit)).mapN(DualGene.apply)
   }
   def parse(groups : Iterator[String]) : DualGene = {
     val plus = groups.next()
@@ -903,7 +871,7 @@ case class DomRecAllele(leftDom: Boolean, rightDom : Boolean) {
 object DomRecAllele {
   val parser: Parser[DomRecAllele] = {
     val cParser = Parser.char('A').as(true).backtrack.orElse(Parser.char('a').as(false))
-    (cParser, cParser).mapN[Parser, DomRecAllele](DomRecAllele.apply)
+    (cParser, cParser).mapN(DomRecAllele.apply)
   }
   def parse(groups : Iterator[String]) : DomRecAllele = {
     val allele = groups.next()

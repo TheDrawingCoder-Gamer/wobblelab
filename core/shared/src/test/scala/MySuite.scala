@@ -66,4 +66,12 @@ class MySuite extends munit.FunSuite {
     val y = DogRegistry.exportDog(Dog.randy.asRawDog.get)
     assertEquals(x, y)
   }
+
+  test("DogMath dynamic float Plus minus") {
+    val x = 0.5f
+    val y = DogMath.dynamicFloatToGeneSequence(db.GeneticProperty.BodyScaleXPlus, x, 0, db.GeneticProperty.BodyScaleX.maxBound).get
+    println(y)
+    val z = DogMath.getDynamicFloatFromSequence(db.GeneticProperty.BodyScaleXPlus, y, 0, db.GeneticProperty.BodyScaleX.maxBound).get
+    assertEquals(x, z)
+  }
 }

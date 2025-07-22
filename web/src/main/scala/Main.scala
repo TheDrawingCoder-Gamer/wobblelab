@@ -14,6 +14,7 @@ import org.scalajs.dom
 import dom.console
 import net.bulbyvr.wobblelab.util.ColorF
 
+import java.text.DecimalFormat
 import scala.compiletime.{codeOf, constValue, erasedValue, error, summonInline}
 import scala.deriving.Mirror
 
@@ -47,7 +48,7 @@ object Main extends IOWebApp {
       )
     }
 
-  
+  val percentFormat = new DecimalFormat("0.##%")
   
   def matSection(dog: SignallingRef[IO, GameDog], mat: Signal[IO, CalculatedMaterial], name: String, part: DogMaterialPart): Resource[IO, HtmlElement[IO]] =
     val geneDawg = SignallingRef.lens[IO, GameDog, MasterDogGene](dog)(_.masterGene, src => gene => {
@@ -57,12 +58,13 @@ object Main extends IOWebApp {
     div(
       p(name + " color: ", mat.map(_.base.showOpaque), "  ", matColor(part, geneDawg, mat, _.base, src => it => src.copy(base = it))),
       p(name + " emission color: ", mat.map(_.emission.showOpaque), "  ", matColor(part, geneDawg, mat, _.emission, src => it => src.copy(emission = it))),
-      p(name + " metallic: ", mat.map(it => (it.metallic * 100).toString)),
-      p(name + " glossiness: ", mat.map(it => (it.glossiness * 100).toString))
+      p(name + " metallic: ", mat.map(it => percentFormat.format(it.metallic))),
+      p(name + " glossiness: ", mat.map(it => percentFormat.format(it.glossiness)))
     )
 
   def resultPane(dog: SignallingRef[IO, GameDog]): Resource[IO, HtmlElement[IO]] = {
     val calculatedSignal = dog.map(_.calculatedGenes)
+
     div(
       cls := "scrollView",
       div(
@@ -83,8 +85,25 @@ object Main extends IOWebApp {
         matSection(dog, calculatedSignal.map(_.legColor), "Legs", DogMaterialPart.Leg),
         matSection(dog, calculatedSignal.map(_.noseEarColor), "Nose/Ear", DogMaterialPart.NoseEar),
         div(
-          children <-- calculatedSignal.map(_.floatItems.iterator.toList.map { (gene, value) =>
-            p(gene.displayName + ": ", value.value.toString, " ", (value.percentage * 100).toString + "%")
+          children <-- calculatedSignal.map(_.floatItems.iterator.toList.map { (gene, v) =>
+            p(
+              gene.displayName + ": ",
+              percentFormat.format(v.percentage)
+              /*
+              input.withSelf { self =>
+                (
+                  tpe := "text",
+                  value := (v.percentage * 100).toString,
+                  onChange --> {
+                    _.evalMap(_ => self.value.get).map(_.toFloatOption)
+                     .unNone
+                     .foreach(it => dog.modify(src => (src.updatedPercent(gene, it / 100f).getOrElse(src), ())))
+                  }
+                )
+              }
+               */
+            )
+            
           })
         )
 
@@ -126,37 +145,6 @@ object Main extends IOWebApp {
       )
     )
   }
-  def dualGeneGroup(name: String, dualGene: SignallingRef[IO, DualGene]): Resource[IO, HtmlElement[IO]] = {
-    div(
-      strCompTextbox(name + " Plus:", dualGene.imapCopied[String]("plus")),
-      strCompTextbox(name + " Minus:", dualGene.imapCopied[String]("minus")),
-    )
-  }
-  def colorGeneGroup(name: String, colorGene: SignallingRef[IO, ColorGene]): Resource[IO, HtmlElement[IO]] = {
-    div(
-      strCompTextbox(s"$name Emission Color (Red) Plus", colorGene.imapCopied[String]("emissionRedPlus")),
-      strCompTextbox(s"$name Emission Color (Red) Minus", colorGene.imapCopied[String]("emissionRedMinus")),
-      strCompTextbox(s"$name Emission Color (Green) Plus", colorGene.imapCopied[String]("emissionGreenPlus")),
-      strCompTextbox(s"$name Emission Color (Green) Minus", colorGene.imapCopied[String]("emissionGreenMinus")),
-      strCompTextbox(s"$name Emission Color (Blue) Plus", colorGene.imapCopied[String]("emissionBluePlus")),
-      strCompTextbox(s"$name Emission Color (Blue) Minus", colorGene.imapCopied[String]("emissionBlueMinus")),
-      strCompTextbox(s"$name Base Color (Red) Plus", colorGene.imapCopied[String]("baseRedPlus")),
-      strCompTextbox(s"$name Base Color (Red) Minus", colorGene.imapCopied[String]("baseRedMinus")),
-      strCompTextbox(s"$name Base Color (Green) Plus", colorGene.imapCopied[String]("baseGreenPlus")),
-      strCompTextbox(s"$name Base Color (Green) Minus", colorGene.imapCopied[String]("baseGreenMinus")),
-      strCompTextbox(s"$name Base Color (Blue) Plus", colorGene.imapCopied[String]("baseBluePlus")),
-      strCompTextbox(s"$name Base Color (Blue) Minus", colorGene.imapCopied[String]("baseBlueMinus")),
-    )
-  }
-  def shinyGeneGroup(name: String, shinyGene: SignallingRef[IO, ShinyGene]): Resource[IO, HtmlElement[IO]] = {
-    div(
-      standardGeneTextbox(5, name + " Metallic Plus", shinyGene.imapCopied("metallicPlus")),
-      standardGeneTextbox(5, name + " Metallic Minus", shinyGene.imapCopied[String]("metallicMinus")),
-      standardGeneTextbox(5, name + " Gloss Plus", shinyGene.imapCopied[String]("glossPlus")),
-      standardGeneTextbox(5, name + " Gloss Minus", shinyGene.imapCopied[String]("glossMinus"))
-    )
-  }
-
   def standardGeneTextbox(len: Int, name: String, str: SignallingRef[IO, String]): Resource[IO, HtmlElement[IO]] = {
     p(
       name,

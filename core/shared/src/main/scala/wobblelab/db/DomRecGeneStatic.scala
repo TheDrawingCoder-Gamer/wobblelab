@@ -90,11 +90,3 @@ object DomRecGeneStatic {
 
   )
 }
-
-given domRecGeneDecoder: Decoder[DomRecGeneStatic]
-  = Decoder.forProduct5("version", "AA", "Aa", "aa", "defaultValue")(DomRecGeneStatic.apply)
-given domRecGeneEncoder: Encoder[DomRecGeneStatic] = {
-  Encoder.forProduct5("version", "AA", "Aa", "aa", "defaultValue") { g =>
-    (g.version, g.dom, g.het, g.sub, g.defaultValue)
-  }
-}

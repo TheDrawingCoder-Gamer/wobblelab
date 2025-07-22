@@ -25,7 +25,7 @@ case class MasterDogGene
    domRecPropertyStatus: Map[DomRecGeneProperty, Boolean]
   ) {
   def updatedGeneString(key: GeneticProperty, value: String): Option[MasterDogGene] = {
-    val isValid = (!key.geneType.strictLength || key.defaultLen == value.length) && value.length <= DogMath.maxGeneLen
+    val isValid = !key.geneType.strictLength || key.defaultLen == value.length
     Option.when(isValid):
       val newHolders = genes.updated(key, value)
       copy(

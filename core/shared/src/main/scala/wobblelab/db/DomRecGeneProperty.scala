@@ -2,7 +2,7 @@ package net.bulbyvr
 package wobblelab.db
 
 
-enum DomRecGeneProperty(val displayName: String) derives OrdinalEncoder, OrdinalDecoder {
+enum DomRecGeneProperty(val displayName: String) {
   case None extends  DomRecGeneProperty("No Effect")
   case MissingFrontLeftLeg extends DomRecGeneProperty("Missing Front Left Leg")
   case MissingFrontRightLeg extends DomRecGeneProperty("Missing Front Right Leg")

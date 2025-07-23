@@ -10,6 +10,9 @@ import net.bulbyvr.wobblelab.DogMaterialPart
 
 import scala.collection.mutable as mut
 
+import cats.*, cats.data.*
+import cats.syntax.all.*
+
 case class RawGene(
                   dogGene: String,
                   domRecGene: String
@@ -70,37 +73,41 @@ case class MasterDogGene
 
   // TODO: this obviously is broken in some way
   // FIXME!
-  def updatePlusMinus(prop: PlusMinusGene, value: Float, minVal: Float, maxVal: Float): MasterDogGene =
-    val minusGene = if value < 0 then DogMath.maybeDynamicFloatToGeneSequence(prop.minus, math.abs(value), 0, minVal) else "0".repeat(prop.defaultLen)
-    val plusGene = if value < 0 then "0".repeat(prop.defaultLen) else DogMath.maybeDynamicFloatToGeneSequence(prop.plus, math.abs(value), 0, maxVal)
-    val newMap = genes.updated(prop.plus, plusGene).updated(prop.minus, minusGene)
-
-    this.copy(genes = newMap)
+  def updatePlusMinus(prop: PlusMinusGene, value: Float, minVal: Float, maxVal: Float): ValidatedNec[String, MasterDogGene] =
+    println(value)
+    val minusGene = if value < 0 then DogMath.maybeDynamicFloatToGeneSequence(prop.minus, math.abs(value), 0, minVal) else Validated.validNec("0".repeat(prop.defaultLen))
+    val plusGene = if value < 0 then Validated.validNec("0".repeat(prop.defaultLen)) else DogMath.maybeDynamicFloatToGeneSequence(prop.plus, math.abs(value), 0, maxVal)
+    // Validated is applicative (so it can pull all errors out and display them)
+    (minusGene, plusGene).mapN: (minus, plus) =>
+      this.copy(genes = genes.updated(prop.plus, plus).updated(prop.minus, minus))
 
   // If Prop is a super, then value is _unclamped_. Otherwise, value is clamped to range
-  def updateFloatValue(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): MasterDogGene =
+  def updateFloatValue(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): ValidatedNec[String, MasterDogGene] =
     val newValue =
       prop.geneType match
-        case SDogGeneType.Super(_) => DogMath.dynamicFloatToGeneSequence(prop, value, minVal, maxVal).get
-        case _ => DogMath.floatToGeneSequence(value, minVal, maxVal, prop.defaultLen)
+        case SDogGeneType.Super(_) => DogMath.dynamicFloatToGeneSequence(prop, value, minVal, maxVal)
+        case _ => Validated.validNec(DogMath.floatToGeneSequence(value, minVal, maxVal, prop.defaultLen))
 
-    copy(genes = genes.updated(prop, newValue))
+    newValue.map: it =>
+      copy(genes = genes.updated(prop, it))
   
   def updatePartBase(name: DogMaterialPart, color: ColorF): MasterDogGene =
     import name.default.*
-    
+
+    // ASSERT IN RANGE
+    // Color should ALWAYS be in range
     this
-      .updatePlusMinus(name.baseR, color.r, minBaseR, maxBaseR)
-      .updatePlusMinus(name.baseG, color.g, minBaseG, maxBaseG)
-      .updatePlusMinus(name.baseB, color.b, minBaseB, maxBaseB)
+      .updatePlusMinus(name.baseR, color.r - minBaseR, minBaseR, maxBaseR).toOption.get
+      .updatePlusMinus(name.baseG, color.g - minBaseG, minBaseG, maxBaseG).toOption.get
+      .updatePlusMinus(name.baseB, color.b - minBaseB, minBaseB, maxBaseB).toOption.get
     
   def updatePartEmission(name: DogMaterialPart, color: ColorF): MasterDogGene =
     import name.default.*
 
     this
-      .updatePlusMinus(name.emissionR, color.r, minEmissionR, maxEmissionR)
-      .updatePlusMinus(name.emissionG, color.g, minEmissionG, maxEmissionG)
-      .updatePlusMinus(name.emissionB, color.b, minEmissionB, maxEmissionB)
+      .updatePlusMinus(name.emissionR, color.r - minEmissionR, minEmissionR, maxEmissionR).toOption.get
+      .updatePlusMinus(name.emissionG, color.g - minEmissionG, minEmissionG, maxEmissionG).toOption.get
+      .updatePlusMinus(name.emissionB, color.b - minEmissionB, minEmissionB, maxEmissionB).toOption.get
     
   
   def updatePartMaterial(name: DogMaterialPart, mat: CalculatedMaterial): MasterDogGene =
@@ -168,22 +175,27 @@ case class MasterDogGene
         val percent = (res - minVal) / (maxVal - minVal)
         percent
 
-  def percentToValue(prop: Gene, percent: Float)(using DogContext): Option[Float] =
-    boundsFor(prop).map: (minVal, maxVal) =>
-      prop match
-        case _: PlusMinusGene =>
-          (percent * (minVal + maxVal)) - minVal
-        case _: GeneticProperty =>
-          (percent * (maxVal - minVal)) + minVal
+  def percentToValue(prop: Gene, percent: Float)(using DogContext): ValidatedNec[String, Float] =
+    if percent < 0 || percent > 1 then
+      Validated.Invalid(NonEmptyChain.one(s"Percentage ${percent * 100} outside of range"))
+    else
+      boundsFor(prop).toRight(s"No bounds for gene property $prop").toValidatedNec.map: (minVal, maxVal) =>
+        prop match
+          case _: PlusMinusGene =>
+            (percent * (minVal + maxVal)) - minVal
+          case _: GeneticProperty =>
+            (percent * (maxVal - minVal)) + minVal
 
-  def updatedPercent(prop: Gene, percent: Float)(using DogContext): Option[MasterDogGene] =
-    percentToValue(prop, percent).map: v =>
+
+  def updatedPercent(prop: Gene, percent: Float)(using DogContext): ValidatedNec[String, MasterDogGene] =
+    percentToValue(prop, percent).toEither.flatMap: v =>
       val (minVal, maxVal) = boundsFor(prop).get
       prop match
         case x: PlusMinusGene =>
-          updatePlusMinus(x, v, minVal, maxVal)
+          updatePlusMinus(x, v, minVal, maxVal).toEither
         case x: GeneticProperty =>
-          updateFloatValue(x, v, minVal, maxVal)
+          updateFloatValue(x, v, minVal, maxVal).toEither
+    .toValidated
 
   def inferPercent(prop: Gene & HasDefiniteBounds): Float =
     getPercent(prop, prop.minBound, prop.maxBound)

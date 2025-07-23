@@ -13,7 +13,7 @@ case class GameDog(dogName: String,
     RawDog(GeneVersion.Three, rawGene.dogGene, rawGene.domRecGene, age, ageProgress, eolModifier, lifeExtension, personality, dogName)
   }
 
-  def updatedPercent(gene: db.Gene, value: Float): Option[GameDog] =
+  def updatedPercent(gene: db.Gene, value: Float): cats.data.ValidatedNec[String, GameDog] =
     println(value)
     masterGene.updatedPercent(gene, value)(using db.DogContext(age)).map(it => copy(masterGene = it))
 

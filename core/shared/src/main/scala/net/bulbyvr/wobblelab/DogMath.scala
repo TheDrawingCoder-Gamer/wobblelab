@@ -3,6 +3,9 @@ package wobblelab
 
 import net.bulbyvr.wobblelab.db.{GeneticProperty, HasDefiniteBounds, PlusMinusGene, SDogGeneType}
 
+import cats.*, cats.data.*
+import cats.syntax.all.*
+
 object DogMath {
   val seperatorSymbol = '|'
   val tolerance = 0.0001f
@@ -245,15 +248,16 @@ object DogMath {
   // todo: test more rigorously
   // within the ballpark? Error COULD be chalked up to rounding error,
   // albeit 0.2 is a rather large rounding error
-  def dynamicFloatToGeneSequence(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): Option[String] =
+  def dynamicFloatToGeneSequence(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): ValidatedNec[String, String] =
     prop.geneType match
       case SDogGeneType.Super(maxValIncrease) =>
         val minusArg = prop match
           case x: db.MinusGeneticProperty => x.parent.usesMinusArg
           case _ => false
         if minusArg then
-          Some(floatToGeneSequence(value, minVal, maxVal, prop.defaultLen))
+          Validated.Valid(floatToGeneSequence(value, minVal, maxVal, prop.defaultLen))
         else
+          /*
           // this gives us the inverse of
           // num = maxVal + maxValIncrease * (len - prop.defaultLen)
           // the issue is that I don't really know what to plug in for value,
@@ -268,12 +272,17 @@ object DogMath {
 
           val s = java.lang.Long.toBinaryString(math.round(n).toLong)
           Some(s)
-      case _ => None
+           */
+          if value < minVal || value > maxVal then
+            Validated.invalidNec("Value outside of range, can't convert safely")
+          else
+            Validated.validNec(floatToGeneSequence(value, minVal, maxVal, prop.defaultLen))
+      case _ => Validated.invalidNec("Not a proper")
 
-  def maybeDynamicFloatToGeneSequence(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): String =
+  def maybeDynamicFloatToGeneSequence(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): ValidatedNec[String, String] =
     prop.geneType match
-      case SDogGeneType.Super(_) => dynamicFloatToGeneSequence(prop, value, minVal, maxVal).get
-      case _ => floatToGeneSequence(value, minVal, maxVal, prop.defaultLen)
+      case SDogGeneType.Super(_) => dynamicFloatToGeneSequence(prop, value, minVal, maxVal)
+      case _ => Validated.validNec(floatToGeneSequence(value, minVal, maxVal, prop.defaultLen))
 
   def ageModifiedValue(puppy: Float, adult: Float, age: DogAge): Float =
     if puppy < adult then

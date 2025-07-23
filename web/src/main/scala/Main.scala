@@ -3,6 +3,8 @@ import calico.*
 import calico.html.{Children, Modifier}
 import fs2.dom.*
 import calico.html.io.{*, given}
+import cats.arrow.FunctionK
+import cats.data.*
 import cats.effect.*
 import cats.syntax.all.*
 import cats.effect.syntax.all.*
@@ -61,6 +63,39 @@ object Main extends IOWebApp {
       p(name + " glossiness: ", mat.map(it => percentFormat.format(it.glossiness)))
     )
 
+  def geneFloatResult(dog: SignallingRef[IO, GameDog], calculatedSignal: Signal[IO, db.CalculatedGenes], gene: Gene): Resource[IO, HtmlElement[IO]] = {
+    SignallingRef.of[IO, Option[NonEmptyChain[String]]](None).toResource.flatMap: error =>
+      p(
+        gene.displayName + ": ",
+        calculatedSignal.map(it => percentFormat.format(it.floatItems(gene).percentage)),
+        input.withSelf { self =>
+          (
+            tpe := "text",
+            value <-- calculatedSignal.map(it => (it.floatItems(gene).percentage * 100).toString),
+            onChange --> {
+              _.evalMap(_ => self.value.get).map(_.toFloatOption)
+               .unNone
+               .foreach(it => dog.flatModify { src =>
+                 src.updatedPercent(gene, it / 100f) match
+                   case Validated.Invalid(inv) =>
+                     (src, error.set(Some(inv)))
+                   case Validated.Valid(v) =>
+                     (v, error.set(None))
+               })
+            }
+          )
+        },
+        p(
+        error.map {
+          case Some(errs) => errs.toList.mkString(", ")
+          case None => ""
+        },
+          cls := "error"
+        )
+      )
+  }
+
+
   def resultPane(dog: SignallingRef[IO, GameDog]): Resource[IO, HtmlElement[IO]] = {
     val calculatedSignal = dog.map(_.calculatedGenes)
 
@@ -84,26 +119,7 @@ object Main extends IOWebApp {
         matSection(dog, calculatedSignal.map(_.legColor), "Legs", DogMaterialPart.Legs),
         matSection(dog, calculatedSignal.map(_.noseEarColor), "Nose/Ear", DogMaterialPart.EarsNose),
         div(
-          children <-- calculatedSignal.map(_.floatItems.iterator.toList.map { (gene, v) =>
-            p(
-              gene.displayName + ": ",
-              percentFormat.format(v.percentage),
-              /*
-              input.withSelf { self =>
-                (
-                  tpe := "text",
-                  value := (v.percentage * 100).toString,
-                  onChange --> {
-                    _.evalMap(_ => self.value.get).map(_.toFloatOption)
-                     .unNone
-                     .foreach(it => dog.modify(src => (src.updatedPercent(gene, it / 100f).getOrElse(src), ())))
-                  }
-                )
-              }
-              */
-            )
-            
-          })
+          db.Gene.floatValues.map(gene => geneFloatResult(dog, calculatedSignal, gene))
         )
 
       )

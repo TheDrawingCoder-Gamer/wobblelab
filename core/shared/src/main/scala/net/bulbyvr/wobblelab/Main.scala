@@ -331,6 +331,17 @@ object Dog {
   val patternNumMin: Int = 0
   val patternNumMax: Int = 25
 
+  val splotchSizeMin: Float = 0
+  val splotchSizeMax: Float = 100f
+  val splotchChance10: Float = 5f
+  val splotchChance64: Float = 85f
+  val splotchChance128: Float = 99f
+  
+  val stripeInfoSize: Float = 100f
+  
+  val numRepeatingTypes: Int = 5
+  
+  
   // ???
   val legNumberCap: Int = 6
   val legNumberHardCap: Int = 30

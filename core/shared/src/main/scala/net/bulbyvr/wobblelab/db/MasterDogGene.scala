@@ -5,12 +5,12 @@ package db
 
 
 import net.bulbyvr.wobblelab.db.MasterDogGene.separatorSymbol
-import net.bulbyvr.wobblelab.util.ColorF
+import net.bulbyvr.wobblelab.util.{ColorF, GayMath, Net5Random}
 import net.bulbyvr.wobblelab.DogMaterialPart
 
 import scala.collection.mutable as mut
-
-import cats.*, cats.data.*
+import cats.*
+import cats.data.*
 import cats.syntax.all.*
 
 case class RawGene(
@@ -68,7 +68,21 @@ case class MasterDogGene
     val old = this.domRecGenes(idx)
     val daNew = old.copy(value = kind)
     val newList = this.domRecGenes.updated(idx, daNew)
-    val newMap = this.domRecPropertyStatus.updated(old.currentProperty, false).updated(daNew.currentProperty, true)
+
+    // edge case
+    // triangle eyes is the ONLY case (aside from None, but None doesn't matter)
+    // where two seperate dom rec genes affect the same property, so we'll have to check the other one
+    val oldCase =
+      if old.currentProperty == DomRecGeneProperty.TriangleEyes then
+        val otherIdx = if idx == 28 then 33 else 28
+        val otherProp = this.domRecGenes(otherIdx)
+        otherProp.currentProperty == DomRecGeneProperty.TriangleEyes
+      else
+        false
+
+    val newMap = this.domRecPropertyStatus.updated(old.currentProperty, oldCase).updated(daNew.currentProperty, true)
+
+
     this.copy(domRecGenes = newList, domRecPropertyStatus = newMap)
 
   // TODO: this obviously is broken in some way
@@ -205,6 +219,107 @@ case class MasterDogGene
       case x: (GeneticProperty & HasDefiniteBounds) => inferFloatFromGene(x)
 
 
+  private def getSizeForRepeatingSizeFloat(sizeFloat: Int): Int =
+    sizeFloat match
+      case 0 => 64
+      case 1 => 128
+      case _ =>
+        println("invalid sizeFloat")
+        64
+
+  private def getSplotchWidthFromFloat(f: Float): Int =
+    if f <= Dog.splotchChance10 then
+      10
+    else if f <= Dog.splotchChance64 then
+      64
+    else if f <= Dog.splotchChance128 then
+      128
+    else
+      256
+
+  private def getSeededRandomInt(startingValue: Int, min: Int, max: Int)(using random: Net5Random): Int =
+    var num = random.next(min, max)
+    num = (num + startingValue) % (max + 1)
+    if num < min || num > max then
+      println("invalid random value")
+    num
+
+  private def getSeededRandomFloat(startingValue: Float, min: Float, max: Float)(using random: Net5Random): Float =
+    var num = GayMath.clampf(random.next(math.round(min), math.round(max) + 1), min, max)
+    num = GayMath.clampf((num + startingValue) % (max + 0.1f), min, max)
+    if num < min || num > max then
+      println("invalid random value")
+    num
+
+  private def generateSplotchInfo(using random: Net5Random): SplotchPatternInfo =
+    val a = getSeededRandomInt(getIntFromGene(GeneticProperty.PatternFlipX, 0, 1), 0, 1)
+    val b = getSeededRandomInt(getIntFromGene(GeneticProperty.PatternFlipY, 0, 1), 0, 1)
+    val c = getFloatFromGene(GeneticProperty.PatternInfo, Dog.splotchSizeMin, Dog.splotchSizeMax)
+    val c2 = getSplotchWidthFromFloat(getSeededRandomFloat(c, Dog.splotchSizeMin, Dog.splotchSizeMax))
+    val d = getSeededRandomFloat(getFloatFromGene(GeneticProperty.PatternInfo, 0f, 100f), 0f, 100f)
+    val e = getSeededRandomFloat(getFloatFromGene(GeneticProperty.PatternInfo, 0f, 100f), 0f, 100f) / 100f
+    val f = getSeededRandomFloat(getFloatFromGene(GeneticProperty.PatternInfo, 0f, 100f), 0f, 100f) / 100f
+    SplotchPatternInfo(a, b, c2, d, e, f)
+
+  private def generateStripeInfo(using random: Net5Random): StripePatternInfo =
+    val c = getSeededRandomFloat(getFloatFromGene(GeneticProperty.PatternInfo, 0f, Dog.stripeInfoSize), 0f, Dog.stripeInfoSize)
+    val d = getSeededRandomFloat(getFloatFromGene(GeneticProperty.PatternInfo, 0f, Dog.stripeInfoSize), 0f, Dog.stripeInfoSize)
+    val e = getSeededRandomFloat(getFloatFromGene(GeneticProperty.PatternInfo, 0f, Dog.stripeInfoSize), 0f, Dog.stripeInfoSize)
+    // hard coded count of number of left caps - 1 which is just 1
+    val num = 1
+    val f = getSeededRandomInt(getIntFromGene(GeneticProperty.PatternInfo, 0f, num), 0, num)
+    StripePatternInfo(0, 0, c, d, e, f)
+
+  private def getNumSizesForRepeatingType(kind: Int): Int =
+    kind match
+      case 0 => 1
+      case 1 => 2
+      case 2 => 1
+      case 3 => 2
+      case 4 => 1
+      case _ =>
+        println("invalid repeating type")
+        1
+
+  private def generateRepeatingInfo(loop: Int)(using random: Net5Random): RepeatingPatternInfo =
+    val a = getSeededRandomInt(getIntFromGene(GeneticProperty.PatternFlipX, 0f, 1f), 0, 1)
+    val b = getSeededRandomInt(getIntFromGene(GeneticProperty.PatternFlipY, 0f, 1f), 0, 1)
+    val (c, d) =
+      if loop == 0 then
+        val intFromGene = getIntFromGene(GeneticProperty.PatternInfo, 0, Dog.numRepeatingTypes - 1)
+        val cc = getSeededRandomInt(intFromGene, 0, Dog.numRepeatingTypes - 1)
+        val intFromGene2 = getIntFromGene(GeneticProperty.PatternInfo, 0, getNumSizesForRepeatingType(cc) - 1)
+        val dd = getSizeForRepeatingSizeFloat(getSeededRandomInt(intFromGene2, 0, getNumSizesForRepeatingType(cc) - 1))
+        (cc, dd)
+      else
+        val cc = getSeededRandomInt(getIntFromGene(GeneticProperty.PatternInfo, 0f, 100f), 0, 100)
+        val dd = getSeededRandomInt(getIntFromGene(GeneticProperty.PatternInfo, 0f, 100f), 0, 100)
+        (cc, dd)
+
+    val e = getSeededRandomInt(getIntFromGene(GeneticProperty.PatternInfo, 0f, 100f), 0, 100)
+    val f = getSeededRandomInt(getIntFromGene(GeneticProperty.PatternInfo, 0f, 100f), 0, 100)
+    RepeatingPatternInfo(a, b, c, d, e, f)
+
+
+  private def fillPatternInfo(using random: Net5Random): List[PatternInfo] =
+    (0 until Dog.patternNumMax).map: i =>
+      val splotchInfo = generateSplotchInfo
+      val stripeInfo = generateStripeInfo
+      val repeatingPatternInfo = generateRepeatingInfo(i)
+      PatternInfo(splotchInfo, stripeInfo, repeatingPatternInfo)
+    .toList
+
+  def patternType: PatternType =
+    if this.domRecPropertyStatus(DomRecGeneProperty.NoPattern) then
+      PatternType.None
+    else if this.domRecPropertyStatus(DomRecGeneProperty.SplotchPattern) then
+      PatternType.Splotches
+    else if this.domRecPropertyStatus(DomRecGeneProperty.StripePattern) then
+      PatternType.Stripes
+    else if this.domRecPropertyStatus(DomRecGeneProperty.RepeatingPattern) then
+      PatternType.Repeating
+    else
+      PatternType.None
 
   def getPartMaterial(part: DogMaterialPart): CalculatedMaterial =
     import part.default.*

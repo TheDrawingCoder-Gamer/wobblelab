@@ -446,9 +446,7 @@ object GeneticProperty {
 
   // Pattern frequency not in terms of scale, but in randomness
   // such an odd name
-  case object PatternNum extends PlainGeneticProperty("Pattern Random Seed", 5, integral = true), HasDefiniteBounds:
-    def minBound: Float = Dog.patternNumMin
-    def maxBound: Float = Dog.patternNumMax
+  case object PatternNum extends PlainGeneticProperty("Pattern Random Seed", 5, integral = true)
   case object PatternFlipX extends PlainGeneticProperty("Pattern Horz. Flip", 1, SDogGeneType.Looped(25))
   case object PatternFlipY extends PlainGeneticProperty("Pattern Vert. Flip", 1, SDogGeneType.Looped(25))
   case object PatternInfo extends PlainGeneticProperty("Pattern Variation", 5, SDogGeneType.Looped(25, discrete = false))

@@ -12,4 +12,13 @@ case class GameDog(dogName: String,
     val rawGene = masterGene.getRawString
     RawDog(GeneVersion.Three, rawGene.dogGene, rawGene.domRecGene, age, ageProgress, eolModifier, lifeExtension, personality, dogName)
   }
+
+  def updatedPercent(gene: db.Gene, value: Float): Option[GameDog] =
+    println(value)
+    masterGene.updatedPercent(gene, value)(using db.DogContext(age)).map(it => copy(masterGene = it))
+
+  def withDogCtx[T](f: db.DogContext ?=> T): T =
+    f(using db.DogContext(age))
+
+  def calculatedGenes: db.CalculatedGenes = masterGene.calculateGenes()(using db.DogContext(age))
 }

@@ -9,18 +9,18 @@ import cats.effect.syntax.all.*
 import fs2.*
 import fs2.concurrent.*
 import macros.imapCopied
-import net.bulbyvr.wobblelab.db.{MasterDogGene, TraitType}
+import net.bulbyvr.wobblelab.db.{CalculatedMaterial, Gene, MasterDogGene, TraitType}
 import org.scalajs.dom
 import dom.console
+import net.bulbyvr.wobblelab.util.ColorF
 
+import java.text.DecimalFormat
 import scala.compiletime.{codeOf, constValue, erasedValue, error, summonInline}
 import scala.deriving.Mirror
 
 
-@experimental
 object Main extends IOWebApp {
   import net.bulbyvr.wobblelab.*
-  import RawDog.experimental.*
 
   inline def summonSingletonCases[T <: Tuple, A](inline typeName: Any): List[A] =
     inline erasedValue[T] match
@@ -31,8 +31,39 @@ object Main extends IOWebApp {
           case m: Mirror =>
             error("Enum " + codeOf(typeName) + " contains non singleton case " + codeOf(constValue[m.MirroredLabel]))
 
+  def matColor(part: DogMaterialPart, geneDawg: SignallingRef[IO, MasterDogGene],
+               mat: Signal[IO, CalculatedMaterial],
+               fieldAccess: CalculatedMaterial => ColorF,
+               updateAccess: MasterDogGene => ColorF => MasterDogGene): Resource[IO, HtmlElement[IO]] =
+    input.withSelf { self =>
+      (
+        tpe := "color",
+        value <-- mat.map(it => fieldAccess(it).showOpaque),
+        onChange --> {
+          _.evalMap(_ => self.value.get).foreach(it => geneDawg.modify(gene => {
+            (updateAccess(gene)(util.Color.parseHex(it).toFloatColor), ())
+          }))
+        }
+      )
+    }
+
+  val percentFormat = new DecimalFormat("0.##%")
+  
+  def matSection(dog: SignallingRef[IO, GameDog], mat: Signal[IO, CalculatedMaterial], name: String, part: DogMaterialPart): Resource[IO, HtmlElement[IO]] =
+    val geneDawg = SignallingRef.lens[IO, GameDog, MasterDogGene](dog)(_.masterGene, src => gene => {
+      val raw = gene.getRawString
+      src.asRawDog.copy(dogGene = raw.dogGene, domRecGene = raw.domRecGene).toGameDog
+    })
+    div(
+      p(name + " color: ", mat.map(_.base.showOpaque), "  ", matColor(part, geneDawg, mat, _.base, src => it => src.updatePartBase(part, it))),
+      p(name + " emission color: ", mat.map(_.emission.showOpaque), "  ", matColor(part, geneDawg, mat, _.emission, src => it => src.updatePartEmission(part, it))),
+      p(name + " metallic: ", mat.map(it => percentFormat.format(it.metallic))),
+      p(name + " glossiness: ", mat.map(it => percentFormat.format(it.glossiness)))
+    )
+
   def resultPane(dog: SignallingRef[IO, GameDog]): Resource[IO, HtmlElement[IO]] = {
-    val calculatedSignal = dog.map(_.masterGene.calculateGenes())
+    val calculatedSignal = dog.map(_.calculatedGenes)
+
     div(
       cls := "scrollView",
       div(
@@ -44,11 +75,37 @@ object Main extends IOWebApp {
         p("Wing type: ", calculatedSignal.map(_.wingType.display)),
         p("Eye type: ", calculatedSignal.map(_.eyeType.displayName)),
         p("Mouth type: ", calculatedSignal.map(_.mouthType.displayName)),
-        p("Front leg pairs: ", calculatedSignal.map(_.frontLegPairs.toString)),
-        p("Back leg pairs: ", calculatedSignal.map(_.backLegPairs.toString)),
-        p("Wing number: ", calculatedSignal.map(_.wingNumber.toString)),
-        p("Tail number: ", calculatedSignal.map(_.tailNumber.toString)),
-        p("Head number: ", calculatedSignal.map(_.headNumber.toString))
+        div(
+          children <-- calculatedSignal.map(_.integralItems.iterator.toList.map { (gene, value) =>
+            p(gene.displayName + ": ", value.toString)
+          })
+        ),
+        matSection(dog, calculatedSignal.map(_.bodyMat), "Body", DogMaterialPart.Body),
+        matSection(dog, calculatedSignal.map(_.legColor), "Legs", DogMaterialPart.Legs),
+        matSection(dog, calculatedSignal.map(_.noseEarColor), "Nose/Ear", DogMaterialPart.EarsNose),
+        div(
+          children <-- calculatedSignal.map(_.floatItems.iterator.toList.map { (gene, v) =>
+            p(
+              gene.displayName + ": ",
+              percentFormat.format(v.percentage),
+              /*
+              input.withSelf { self =>
+                (
+                  tpe := "text",
+                  value := (v.percentage * 100).toString,
+                  onChange --> {
+                    _.evalMap(_ => self.value.get).map(_.toFloatOption)
+                     .unNone
+                     .foreach(it => dog.modify(src => (src.updatedPercent(gene, it / 100f).getOrElse(src), ())))
+                  }
+                )
+              }
+              */
+            )
+            
+          })
+        )
+
       )
     )
   }
@@ -87,34 +144,17 @@ object Main extends IOWebApp {
       )
     )
   }
-  def dualGeneGroup(name: String, dualGene: SignallingRef[IO, DualGene]): Resource[IO, HtmlElement[IO]] = {
-    div(
-      strCompTextbox(name + " Plus:", dualGene.imapCopied[String]("plus")),
-      strCompTextbox(name + " Minus:", dualGene.imapCopied[String]("minus")),
-    )
-  }
-  def colorGeneGroup(name: String, colorGene: SignallingRef[IO, ColorGene]): Resource[IO, HtmlElement[IO]] = {
-    div(
-      strCompTextbox(s"$name Emission Color (Red) Plus", colorGene.imapCopied[String]("emissionRedPlus")),
-      strCompTextbox(s"$name Emission Color (Red) Minus", colorGene.imapCopied[String]("emissionRedMinus")),
-      strCompTextbox(s"$name Emission Color (Green) Plus", colorGene.imapCopied[String]("emissionGreenPlus")),
-      strCompTextbox(s"$name Emission Color (Green) Minus", colorGene.imapCopied[String]("emissionGreenMinus")),
-      strCompTextbox(s"$name Emission Color (Blue) Plus", colorGene.imapCopied[String]("emissionBluePlus")),
-      strCompTextbox(s"$name Emission Color (Blue) Minus", colorGene.imapCopied[String]("emissionBlueMinus")),
-      strCompTextbox(s"$name Base Color (Red) Plus", colorGene.imapCopied[String]("baseRedPlus")),
-      strCompTextbox(s"$name Base Color (Red) Minus", colorGene.imapCopied[String]("baseRedMinus")),
-      strCompTextbox(s"$name Base Color (Green) Plus", colorGene.imapCopied[String]("baseGreenPlus")),
-      strCompTextbox(s"$name Base Color (Green) Minus", colorGene.imapCopied[String]("baseGreenMinus")),
-      strCompTextbox(s"$name Base Color (Blue) Plus", colorGene.imapCopied[String]("baseBluePlus")),
-      strCompTextbox(s"$name Base Color (Blue) Minus", colorGene.imapCopied[String]("baseBlueMinus")),
-    )
-  }
-  def shinyGeneGroup(name: String, shinyGene: SignallingRef[IO, ShinyGene]): Resource[IO, HtmlElement[IO]] = {
-    div(
-      strCompTextbox(name + " Metallic Plus", shinyGene.imapCopied("metallicPlus")),
-      strCompTextbox(name + " Metallic Minus", shinyGene.imapCopied[String]("metallicMinus")),
-      strCompTextbox(name + " Gloss Plus", shinyGene.imapCopied[String]("glossPlus")),
-      strCompTextbox(name + " Gloss Minus", shinyGene.imapCopied[String]("glossMinus"))
+  def standardGeneTextbox(len: Int, name: String, str: SignallingRef[IO, String]): Resource[IO, HtmlElement[IO]] = {
+    p(
+      name,
+      input.withSelf { self =>
+        (
+          onChange --> {
+            _.evalMap(_ => self.value.get).foreach(it => if it.length == len then str.set(it) else IO.unit)
+          },
+          value <-- str
+        )
+      }
     )
   }
 
@@ -140,9 +180,10 @@ object Main extends IOWebApp {
         db.GeneticProperty.values.map { key =>
           strCompTextbox(key.displayName,
             SignallingRef.lens[IO, MasterDogGene, String](masterGene)
-                         (it => it.getGeneString(key).getOrElse(""),
-                           src => it => src.updatedGeneString(key, it)))
-        }.toList
+                         // ??????????
+                         (it => it.genes(key),
+                           src => it => src.updatedGeneString(key, it).getOrElse(src)))
+        }
       )
     )
   }
@@ -226,8 +267,7 @@ object Main extends IOWebApp {
   }
   def render: Resource[IO, HtmlElement[IO]] = {
     for {
-      blawg <- SignallingRef[IO].of(Dog.randy.asRawDog.toGameDog).toResource
-      // _ <- blawg.discrete.evalTap(it => IO.delay { console.log(it.masterGene.calculateGenes()) }).compile.drain.background
+      blawg <- SignallingRef[IO].of(Dog.randy.asRawDog.get.toGameDog).toResource
       selectedTab <- SignallingRef[IO].of(0).toResource
       freakyPanes =
         Vector(

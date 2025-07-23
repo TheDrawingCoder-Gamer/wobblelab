@@ -1,6 +1,8 @@
 package net.bulbyvr
 package wobblelab
 
+import net.bulbyvr.wobblelab.db.{GeneticProperty, HasDefiniteBounds, PlusMinusGene, SDogGeneType}
+
 object DogMath {
   val seperatorSymbol = '|'
   val tolerance = 0.0001f
@@ -218,11 +220,11 @@ object DogMath {
     if (gene.isEmpty) {
       return minVal
     }
-    val num = getNumBinaryPermutations(gene.length)
-    val num2: Float = getFloatFromBinaryString(gene) / num
-    val num3 = maxVal - minVal
+    val num = getNumBinaryPermutations(gene.length) // get the max value of a value of this size
+    val num2: Float = getFloatFromBinaryString(gene) / num // turn into range from 0 to 1
+    val num3 = maxVal - minVal // range
     val num4 = num2 * num3 + minVal
-    val num5 = 0.1f
+    val num5 = 0.1f // with weird clamping
     if (num4 - num5 > maxVal) {
       maxVal
     } else if (num4 + num5 < minVal) {
@@ -232,4 +234,87 @@ object DogMath {
     }
 
   }
+  def floatToGeneSequence(value: Float, minVal: Float, maxVal: Float, len: Int): String =
+    val perms = getNumBinaryPermutations(len)
+    val n = math.max(math.min(((value - minVal) * perms.toFloat) / (maxVal - minVal), perms.toFloat), 0)
+
+    val s = java.lang.Long.toBinaryString(n.toLong)
+    "0".repeat(len - s.length) ++ s
+
+  // Dynamic floats are _unclamped_
+  // todo: test more rigorously
+  // within the ballpark? Error COULD be chalked up to rounding error,
+  // albeit 0.2 is a rather large rounding error
+  def dynamicFloatToGeneSequence(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): Option[String] =
+    prop.geneType match
+      case SDogGeneType.Super(maxValIncrease) =>
+        val minusArg = prop match
+          case x: db.MinusGeneticProperty => x.parent.usesMinusArg
+          case _ => false
+        if minusArg then
+          Some(floatToGeneSequence(value, minVal, maxVal, prop.defaultLen))
+        else
+          // this gives us the inverse of
+          // num = maxVal + maxValIncrease * (len - prop.defaultLen)
+          // the issue is that I don't really know what to plug in for value,
+          // as num above is passed directly to getFloatFromGeneSequence as the max arg
+          val num = (value + (maxValIncrease * prop.defaultLen) - maxVal) / maxValIncrease
+
+          println(s"dynamic float: $value; $num extra digits")
+          val newLen = prop.defaultLen + math.pow(2, math.round(num)).toInt
+          val perms = getNumBinaryPermutations(newLen)
+
+          val n = ((value - minVal) * perms.toFloat) / (maxVal - minVal)
+
+          val s = java.lang.Long.toBinaryString(math.round(n).toLong)
+          Some(s)
+      case _ => None
+
+  def maybeDynamicFloatToGeneSequence(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): String =
+    prop.geneType match
+      case SDogGeneType.Super(_) => dynamicFloatToGeneSequence(prop, value, minVal, maxVal).get
+      case _ => floatToGeneSequence(value, minVal, maxVal, prop.defaultLen)
+
+  def ageModifiedValue(puppy: Float, adult: Float, age: DogAge): Float =
+    if puppy < adult then
+      age.ratio * (puppy - adult) + puppy
+    else
+      (1f - age.ratio) * (adult - puppy) + adult
+  
+  def getDynamicFloatFromSequence(prop: GeneticProperty, gene: String, minVal: Float, maxVal: Float): Option[Float] =
+    prop.geneType match
+      case SDogGeneType.Super(maxValIncrease) =>
+        val isNegativeValue = prop.parent match
+          case x: PlusMinusGene => x.usesMinusArg && prop.isInstanceOf[db.MinusGeneticProperty]
+          case _ => false
+        val expectedGeneSize = prop.defaultLen
+        val len = gene.length
+        var num = maxVal + maxValIncrease * (len - expectedGeneSize).toFloat
+        if num < maxVal then
+          num = maxVal
+
+        if isNegativeValue && len != expectedGeneSize then
+          num = maxVal
+
+        val floatFromGeneSequence = getFloatFromGeneSequence(gene, minVal, num)
+        Some(floatFromGeneSequence)
+      case _ => None
+
+
+
+  def getDynamicIntFromSequence(prop: GeneticProperty, gene: String, minVal: Float, maxVal: Float): Option[Int] =
+    prop.geneType match
+      case SDogGeneType.Super(maxValIncrease) =>
+        val expectedGeneSize = prop.defaultLen
+        val len = gene.length
+        val flag = len >= expectedGeneSize
+        val maxVal2 = maxVal + maxValIncrease * (len - expectedGeneSize).toFloat
+        val num =
+          // If we are smaller than the normal, then just return minimum
+          if (!flag) Math.round(minVal)
+          // Otherwise, round the float
+          else Math.round(getFloatFromGeneSequence(gene, minVal, maxVal2))
+
+        Some(num)
+      case _ => None
 }

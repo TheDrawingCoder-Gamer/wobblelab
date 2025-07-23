@@ -188,14 +188,13 @@ case class MasterDogGene
 
 
   def updatedPercent(prop: Gene, percent: Float)(using DogContext): ValidatedNec[String, MasterDogGene] =
-    percentToValue(prop, percent).toEither.flatMap: v =>
+    percentToValue(prop, percent).andThen: v =>
       val (minVal, maxVal) = boundsFor(prop).get
       prop match
         case x: PlusMinusGene =>
-          updatePlusMinus(x, v, minVal, maxVal).toEither
+          updatePlusMinus(x, v, minVal, maxVal)
         case x: GeneticProperty =>
-          updateFloatValue(x, v, minVal, maxVal).toEither
-    .toValidated
+          updateFloatValue(x, v, minVal, maxVal)
 
   def inferPercent(prop: Gene & HasDefiniteBounds): Float =
     getPercent(prop, prop.minBound, prop.maxBound)

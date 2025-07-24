@@ -786,6 +786,22 @@ case class MasterDogGene
       case x: (PlusMinusGene & HasDefiniteBounds) => inferPlusMinus(x)
       case x: (GeneticProperty & HasDefiniteBounds) => inferFloatFromGene(x)
 
+  def setIntegral(prop: PlainGeneticProperty & HasDefiniteBounds, value: Int): ValidatedNec[String, MasterDogGene] =
+    if prop.integral then
+      prop.geneType match
+        case SDogGeneType.Super(maxValIncrease) =>
+          if maxValIncrease != 1 then
+            Validated.invalidNec("Not an exact integral, can't safely convert")
+          else
+            val realLen = math.min(prop.defaultLen + value - 1, 20)
+            val maxBound = (realLen - prop.defaultLen) * maxValIncrease + prop.maxBound
+            val r = DogMath.floatToGeneSequence(value, prop.minBound, maxBound, realLen)
+            Validated.valid(copy(genes = genes.updated(prop, r)))
+        case _ =>
+          Validated.invalidNec("Property isn't super")
+    else
+      Validated.invalidNec("Property isn't integral")
+
 
   private def getSizeForRepeatingSizeFloat(sizeFloat: Int): Int =
     sizeFloat match
@@ -1218,7 +1234,7 @@ case class MasterDogGene
         case Some(v) =>
           floatMap(x) = CalculatedValue(getValue(x, v._1, v._2), getPercent(x, v._1, v._2))
         case _ => ()
-    
+
     floatMap(GeneticProperty.PatternAlpha) = CalculatedValue(inferValue(GeneticProperty.PatternAlpha), inferPercent(GeneticProperty.PatternAlpha))
 
     

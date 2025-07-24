@@ -11,7 +11,7 @@ import cats.effect.syntax.all.*
 import fs2.*
 import fs2.concurrent.*
 import macros.imapCopied
-import net.bulbyvr.wobblelab.db.{CalculatedMaterial, Gene, MasterDogGene, PlusMinusGene, TraitType}
+import net.bulbyvr.wobblelab.db.{CalculatedMaterial, Gene, GeneticProperty, MasterDogGene, PlainGeneticProperty, PlusMinusGene, TraitType}
 import org.scalajs.dom
 import dom.console
 import net.bulbyvr.wobblelab.util.ColorF
@@ -145,6 +145,38 @@ object Main extends IOWebApp {
     val eyeType = SignallingRef.lens[IO, GameDog, EyeType](dog)(_.masterGene.eyeType, src => it => src.copy(masterGene = src.masterGene.selectEyeType(it)))
     val mouthType = SignallingRef.lens[IO, GameDog, MouthType](dog)(_.masterGene.mouthType, src => it => src.copy(masterGene = src.masterGene.selectMouthType(it)))
 
+    def bindIntegral(get: db.CalculatedGenes => Int, prop: PlainGeneticProperty & db.HasDefiniteBounds): Resource[IO, HtmlElement[IO]] =
+      SignallingRef.of[IO, Option[NonEmptyChain[String]]](None).toResource.flatMap: error =>
+        p(prop.displayName + ": ", input.withSelf { self =>
+          (
+            tpe := "text",
+            value <-- calculatedSignal.map(get.andThen(_.toString)),
+            onChange --> {
+              _.evalMap(_ => self.value.get).map(_.toIntOption)
+               .unNone
+               .foreach(n =>
+                 dog.flatModify { blawg =>
+                   blawg.masterGene.setIntegral(prop, n) match
+                     case Validated.Invalid(v) =>
+                       (blawg, error.set(Some(v)))
+                     case Validated.Valid(x) =>
+                       (blawg.copy(masterGene = x), error.set(None))
+                 }
+               )
+            }
+          )
+        },
+          p(
+            cls := "error",
+            error.map {
+              case Some(v) => v.toList.mkString(", ")
+              case None => ""
+            }
+          ))
+
+    def bindIntegralProp(prop: PlainGeneticProperty & db.HasDefiniteBounds): Resource[IO, HtmlElement[IO]] =
+      bindIntegral(_.integralItems(prop), prop)
+
     div(
       cls := "scrollView",
       div(
@@ -156,6 +188,13 @@ object Main extends IOWebApp {
         personalityBinder[WingType](wingType, "Wing type: "),
         personalityBinder[EyeType](eyeType, "Eye type: "),
         personalityBinder[MouthType](mouthType, "Mouth type: "),
+/*
+        bindIntegralProp(GeneticProperty.WingNumber),
+        bindIntegralProp(GeneticProperty.TailNum),
+        bindIntegralProp(GeneticProperty.HeadNumber),
+        bindIntegralProp(GeneticProperty.LegPairsFront),
+        bindIntegralProp(GeneticProperty.LegPairsBack),
+*/
         div(
           children <-- calculatedSignal.map(_.integralItems.iterator.toList.map { (gene, value) =>
             p(gene.displayName + ": ", value.toString)

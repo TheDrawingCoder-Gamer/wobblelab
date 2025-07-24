@@ -11,7 +11,7 @@ import cats.effect.syntax.all.*
 import fs2.*
 import fs2.concurrent.*
 import macros.imapCopied
-import net.bulbyvr.wobblelab.db.{CalculatedMaterial, Gene, MasterDogGene, TraitType}
+import net.bulbyvr.wobblelab.db.{CalculatedMaterial, Gene, MasterDogGene, PlusMinusGene, TraitType}
 import org.scalajs.dom
 import dom.console
 import net.bulbyvr.wobblelab.util.ColorF
@@ -57,17 +57,49 @@ object Main extends IOWebApp {
     else
       percentFormat.format(f)
   
-  def matSection(dog: SignallingRef[IO, GameDog], mat: Signal[IO, CalculatedMaterial], name: String, part: DogMaterialPart): Resource[IO, HtmlElement[IO]] =
+  def matSection(dog: SignallingRef[IO, GameDog], mat: Signal[IO, CalculatedMaterial], part: DogMaterialPart): Resource[IO, HtmlElement[IO]] =
+    val name = part.display
     val geneDawg = SignallingRef.lens[IO, GameDog, MasterDogGene](dog)(_.masterGene, src => gene => {
       val raw = gene.getRawString
       src.asRawDog.copy(dogGene = raw.dogGene, domRecGene = raw.domRecGene).toGameDog
     })
-    div(
-      p(name + " color: ", mat.map(_.base.showOpaque), "  ", matColor(part, geneDawg, mat, _.base, src => it => src.updatePartBase(part, it))),
-      p(name + " emission color: ", mat.map(_.emission.showOpaque), "  ", matColor(part, geneDawg, mat, _.emission, src => it => src.updatePartEmission(part, it))),
-      p(name + " metallic: ", mat.map(it => formatPercent(it.metallic))),
-      p(name + " glossiness: ", mat.map(it => formatPercent(it.glossiness)))
-    )
+
+    def errorField(daName: String, error: SignallingRef[IO, Option[NonEmptyChain[String]]], getField: CalculatedMaterial => Float, daPart: PlusMinusGene): Resource[IO, HtmlElement[IO]] =
+      p(s"$name $daName: ", mat.map(it => formatPercent(getField(it))),
+        input.withSelf { self =>
+          (
+            tpe := "text",
+            value <-- mat.map(it => (getField(it) * 100).toString),
+            onChange --> {
+              _.evalMap(_ => self.value.get).map(_.toFloatOption)
+               .unNone
+               .foreach(it => dog.flatModify { src =>
+                 src.updatedPercent(daPart, it / 100f) match
+                   case Validated.Invalid(inv) =>
+                     (src, error.set(Some(inv)))
+                   case Validated.Valid(v) =>
+                     (v, error.set(None))
+               })
+            }
+          )
+        },
+        p(
+          cls := "error",
+          error.map {
+            case Some(v) => v.toList.mkString(", ")
+            case None => ""
+          }
+        )
+      )
+
+    (SignallingRef.of[IO, Option[NonEmptyChain[String]]](None).toResource, SignallingRef.of[IO, Option[NonEmptyChain[String]]](None).toResource).flatMapN: (metalError, glossError) =>
+      div(
+        p(name + " color: ", mat.map(_.base.showOpaque), "  ", matColor(part, geneDawg, mat, _.base, src => it => src.updatePartBase(part, it))),
+        p(name + " emission color: ", mat.map(_.emission.showOpaque), "  ", matColor(part, geneDawg, mat, _.emission, src => it => src.updatePartEmission(part, it))),
+        errorField("metallic", metalError, _.metallic, part.metallic),
+        errorField("glossiness", glossError, _.glossiness, part.glossiness)
+      )
+
 
   def geneFloatResult(dog: SignallingRef[IO, GameDog], calculatedSignal: Signal[IO, db.CalculatedGenes], gene: Gene): Resource[IO, HtmlElement[IO]] = {
     SignallingRef.of[IO, Option[NonEmptyChain[String]]](None).toResource.flatMap: error =>
@@ -129,9 +161,11 @@ object Main extends IOWebApp {
             p(gene.displayName + ": ", value.toString)
           })
         ),
-        matSection(dog, calculatedSignal.map(_.bodyMat), "Body", DogMaterialPart.Body),
-        matSection(dog, calculatedSignal.map(_.legColor), "Legs", DogMaterialPart.Legs),
-        matSection(dog, calculatedSignal.map(_.noseEarColor), "Nose/Ear", DogMaterialPart.EarsNose),
+        matSection(dog, calculatedSignal.map(_.bodyMat), DogMaterialPart.Body),
+        matSection(dog, calculatedSignal.map(_.legColor), DogMaterialPart.Legs),
+        matSection(dog, calculatedSignal.map(_.noseEarColor), DogMaterialPart.EarsNose),
+        matSection(dog, calculatedSignal.map(_.patternColor), DogMaterialPart.Pattern),
+        geneFloatResult(dog, calculatedSignal, db.GeneticProperty.PatternAlpha),
         div(
           db.Gene.floatValues.map(gene => geneFloatResult(dog, calculatedSignal, gene))
         )

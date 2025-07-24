@@ -14,8 +14,12 @@ sealed trait DogMaterialPart:
   
   val default: Dog.Material
 
+  val display: String
+
 object DogMaterialPart:
   case object Body extends DogMaterialPart:
+    override val display: String = "Body"
+
     override val metallic = GeneticProperty.BodyMetallic
     override val glossiness = GeneticProperty.BodyGloss
     override val baseR = GeneticProperty.BodyColorR
@@ -28,6 +32,8 @@ object DogMaterialPart:
     override val default: Dog.Material = Dog.defaultMaterials.body
 
   case object Legs extends DogMaterialPart:
+    override val display: String = "Legs/Head"
+
     override val metallic = GeneticProperty.LegMetallic
     override val glossiness = GeneticProperty.LegGloss
     override val baseR = GeneticProperty.LegColorR
@@ -40,6 +46,8 @@ object DogMaterialPart:
     override val default: Dog.Material = Dog.defaultMaterials.legs
 
   case object EarsNose extends DogMaterialPart:
+    override val display: String = "Nose/Ears"
+
     override val metallic = GeneticProperty.NoseEarMetallic
     override val glossiness = GeneticProperty.NoseEarGloss
     override val baseR = GeneticProperty.NoseEarColorR
@@ -50,3 +58,19 @@ object DogMaterialPart:
     override val emissionB = GeneticProperty.NoseEarEmissionColorB
 
     override val default: Dog.Material = Dog.defaultMaterials.earsNose
+
+  case object Pattern extends DogMaterialPart:
+    override val display: String = "Pattern"
+
+    override val metallic = GeneticProperty.PatternMetallic
+    override val glossiness = GeneticProperty.PatternSmoothness
+    override val baseR = GeneticProperty.PatternColorR
+    override val baseG = GeneticProperty.PatternColorG
+    override val baseB = GeneticProperty.PatternColorB
+    override val emissionR = GeneticProperty.PatternEmissionColorR
+    override val emissionG = GeneticProperty.PatternEmissionColorG
+    override val emissionB = GeneticProperty.PatternEmissionColorB
+
+    override val default: Dog.Material = Dog.defaultMaterials.bodyPattern
+
+given util.PrettyPrint[DogMaterialPart] = _.display

@@ -24,6 +24,7 @@ case class CalculatedGenes(
                           bodyMat: CalculatedMaterial,
                           legColor: CalculatedMaterial,
                           noseEarColor: CalculatedMaterial,
+                          patternColor: CalculatedMaterial,
                           floatItems: Map[Gene, CalculatedValue],
                           integralItems: Map[Gene, Int],
                           // TODO: voice

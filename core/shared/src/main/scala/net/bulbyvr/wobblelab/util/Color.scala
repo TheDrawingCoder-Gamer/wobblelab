@@ -7,7 +7,7 @@ case class Color(r: Int, g: Int, b: Int, a: Int = 255):
     f"#$r%02x$g%02x$b%02x$a%02x"
 
   def showOpaque: String =
-    f"#$r%02x$g%02x$b%02x"
+    f"#${r & 255}%02x${g & 255}%02x${b & 255}%02x"
 
   def toFloatColor: ColorF =
     ColorF(r.toFloat / 255f, g.toFloat / 255f, b.toFloat / 255f, a.toFloat / 255f)

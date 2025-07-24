@@ -959,7 +959,7 @@ case class MasterDogGene
     else
       EarType.Shepherd
 
-  val noseType: NoseType = {
+  def noseType: NoseType = {
     val noseFlat = this.domRecPropertyStatus(DomRecGeneProperty.NoseFlat)
     val noseSquish = this.domRecPropertyStatus(DomRecGeneProperty.NoseSquish)
     val noseStretch = this.domRecPropertyStatus(DomRecGeneProperty.NoseStretch)
@@ -1042,7 +1042,7 @@ case class MasterDogGene
       TailType.Plume
   }
 
-  val wingType = {
+  def wingType: WingType = {
     val noWings = this.domRecPropertyStatus(DomRecGeneProperty.NoWings)
     val alignmentGood = this.domRecPropertyStatus(DomRecGeneProperty.AlignmentGood)
     val alignmentEvil = this.domRecPropertyStatus(DomRecGeneProperty.AlignmentEvil)
@@ -1219,16 +1219,19 @@ case class MasterDogGene
           floatMap(x) = CalculatedValue(getValue(x, v._1, v._2), getPercent(x, v._1, v._2))
         case _ => ()
     
+    floatMap(GeneticProperty.PatternAlpha) = CalculatedValue(inferValue(GeneticProperty.PatternAlpha), inferPercent(GeneticProperty.PatternAlpha))
 
     
     val bodyMat = getPartMaterial(DogMaterialPart.Body)
     val legMat = getPartMaterial(DogMaterialPart.Legs)
     val noseEarMat = getPartMaterial(DogMaterialPart.EarsNose)
+    val patternMat = getPartMaterial(DogMaterialPart.Pattern)
 
     CalculatedGenes(
       bodyMat = bodyMat,
       legColor = legMat,
       noseEarColor = noseEarMat,
+      patternColor = patternMat,
       floatItems = floatMap.to(collection.immutable.ListMap),
       integralItems = integralMap.to(collection.immutable.ListMap),
       earType = earType,

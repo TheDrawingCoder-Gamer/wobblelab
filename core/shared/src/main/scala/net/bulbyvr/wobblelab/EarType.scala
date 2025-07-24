@@ -3,7 +3,7 @@ package wobblelab
 
 enum EarType(val display: String) {
   case TypeA extends EarType("Capsule")
-  case TypeB extends EarType("TypeB")
+  case TypeB extends EarType("Tilted")
   case Blunt extends EarType("Blunt")
   case Bent extends EarType("Bent")
   case Bulbous extends EarType("Bulbous")
@@ -13,3 +13,5 @@ enum EarType(val display: String) {
   case Shepherd extends EarType("Shepherd")
   case Wavy extends EarType("Wavy")
 }
+
+given util.PrettyPrint[EarType] = _.display

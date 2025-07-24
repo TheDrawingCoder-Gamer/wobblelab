@@ -19,3 +19,5 @@ enum EyeType(val displayName: String) {
   case Triangle extends EyeType("Triangle")
   case Mitosis extends EyeType("Mitosis")
 }
+
+given util.PrettyPrint[EyeType] = _.displayName

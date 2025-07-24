@@ -12,6 +12,7 @@ import scala.collection.mutable as mut
 import cats.*
 import cats.data.*
 import cats.syntax.all.*
+import net.bulbyvr
 
 case class RawGene(
                   dogGene: String,
@@ -24,7 +25,7 @@ case class MasterDogGene
   (randomSeed: String,
   // This map WILL contain ALL cases of GeneticProperty
    genes: Map[GeneticProperty, String],
-   domRecGenes: List[DomRecGene],
+   domRecGenes: Vector[DomRecGene],
    domRecPropertyStatus: Map[DomRecGeneProperty, Boolean]
   ) {
   def updatedGeneString(key: GeneticProperty, value: String): Option[MasterDogGene] = {
@@ -64,6 +65,573 @@ case class MasterDogGene
       case Some(v) => math.min(r, v.toInt)
       case None => r
 
+  def selectEyeType(kind: EyeType): MasterDogGene =
+    import DomRecGeneProperty.{None => _, *}
+    val domRecGenes = this.domRecGenes.toArray
+    val domRecPropStatus = this.domRecPropertyStatus.to(mut.HashMap)
+    def clear(idx: Int): Unit =
+      val x = domRecGenes(idx)
+      domRecGenes(idx) = x.copy(value = x.shared.defaultValue)
+
+    def set(idx: Int, value: TraitType): Unit =
+      domRecGenes(idx) = domRecGenes(idx).copy(value = value)
+
+    clear(DomRecGeneStatic.Indices.smallPupils)
+    clear(DomRecGeneStatic.Indices.eyelids)
+    clear(DomRecGeneStatic.Indices.oblongEyes)
+    clear(DomRecGeneStatic.Indices.multiPupils)
+    clear(DomRecGeneStatic.Indices.longEyes)
+    clear(DomRecGeneStatic.Indices.horizontalEyes)
+    clear(DomRecGeneStatic.Indices.triangleEyes)
+    clear(DomRecGeneStatic.Indices.missingPupilsEyes)
+    clear(DomRecGeneStatic.Indices.decorativeEyes)
+    clear(DomRecGeneStatic.Indices.lashesEyes)
+    clear(DomRecGeneStatic.Indices.spiralEyes)
+    clear(DomRecGeneStatic.Indices.triangleEyes2)
+    clear(DomRecGeneStatic.Indices.geometricEyes)
+
+    domRecPropStatus(SmallPupils) = false
+    domRecPropStatus(Eyelids) = false
+    domRecPropStatus(OblongEyes) = false
+    domRecPropStatus(MultiPupils) = false
+    domRecPropStatus(LongEyes) = false
+    domRecPropStatus(HorizontalEyes) = false
+    domRecPropStatus(TriangleEyes) = false
+    domRecPropStatus(MissingPupilEyes) = false
+    domRecPropStatus(DecorativeEyes) = false
+    domRecPropStatus(LashesEyes) = false
+    domRecPropStatus(SpiralEyes) = false
+    domRecPropStatus(GeometricEyes) = false
+
+    kind match
+      // standard is the default case if nothing is true
+      case EyeType.Standard => ()
+      case EyeType.Lidded =>
+        set(DomRecGeneStatic.Indices.eyelids, TraitType.Sub)
+        domRecPropStatus(Eyelids) = true
+      case EyeType.Oblong =>
+        set(DomRecGeneStatic.Indices.oblongEyes, TraitType.Sub)
+        domRecPropStatus(OblongEyes) = true
+      case EyeType.Concerned =>
+        set(DomRecGeneStatic.Indices.smallPupils, TraitType.Sub)
+        domRecPropStatus(SmallPupils) = true
+      case EyeType.Spider =>
+        set(DomRecGeneStatic.Indices.smallPupils, TraitType.Sub)
+        set(DomRecGeneStatic.Indices.multiPupils, TraitType.Sub)
+        domRecPropStatus(SmallPupils) = true
+        domRecPropStatus(MultiPupils) = true
+      case EyeType.Hex =>
+        set(DomRecGeneStatic.Indices.geometricEyes, TraitType.Sub)
+        set(DomRecGeneStatic.Indices.spiralEyes, TraitType.Sub)
+        domRecPropStatus(GeometricEyes) = true
+        domRecPropStatus(SpiralEyes) = true
+      case EyeType.Double =>
+        set(DomRecGeneStatic.Indices.oblongEyes, TraitType.Sub)
+        set(DomRecGeneStatic.Indices.multiPupils, TraitType.Sub)
+        domRecPropStatus(OblongEyes) = true
+        domRecPropStatus(MultiPupils) = true
+      case EyeType.Keyhole =>
+        set(DomRecGeneStatic.Indices.decorativeEyes, TraitType.Sub)
+        domRecPropStatus(DecorativeEyes) = true
+      case EyeType.Lashes =>
+        set(DomRecGeneStatic.Indices.lashesEyes, TraitType.Sub)
+        domRecPropStatus(LashesEyes) = true
+      case EyeType.Puck =>
+        set(DomRecGeneStatic.Indices.horizontalEyes, TraitType.Sub)
+        set(DomRecGeneStatic.Indices.oblongEyes, TraitType.Sub)
+        domRecPropStatus(HorizontalEyes) = true
+        domRecPropStatus(OblongEyes) = true
+      case EyeType.Slim =>
+        set(DomRecGeneStatic.Indices.horizontalEyes, TraitType.Sub)
+        set(DomRecGeneStatic.Indices.longEyes, TraitType.Sub)
+        domRecPropStatus(HorizontalEyes) = true
+        domRecPropStatus(LongEyes) = true
+      case EyeType.Spiral =>
+        set(DomRecGeneStatic.Indices.spiralEyes, TraitType.Sub)
+        domRecPropStatus(SpiralEyes) = true
+      case EyeType.Square =>
+        set(DomRecGeneStatic.Indices.geometricEyes, TraitType.Sub)
+        domRecPropStatus(GeometricEyes) = true
+      case EyeType.Pupilless =>
+        set(DomRecGeneStatic.Indices.missingPupilsEyes, TraitType.Sub)
+        domRecPropStatus(MissingPupilEyes) = true
+      case EyeType.Triangle =>
+        set(DomRecGeneStatic.Indices.triangleEyes, TraitType.Sub)
+        domRecPropStatus(TriangleEyes) = true
+      case EyeType.Mitosis =>
+        set(DomRecGeneStatic.Indices.missingPupilsEyes, TraitType.Sub)
+        set(DomRecGeneStatic.Indices.multiPupils, TraitType.Sub)
+        domRecPropStatus(MissingPupilEyes) = true
+        domRecPropStatus(MultiPupils) = true
+
+    copy(domRecGenes = domRecGenes.toVector, domRecPropertyStatus = domRecPropStatus.toMap)
+
+  def selectWingType(kind: WingType): MasterDogGene =
+    import DomRecGeneProperty.{None => _, *}
+    val domRecGenes = this.domRecGenes.toArray
+    val domRecPropStatus = this.domRecPropertyStatus.to(mut.HashMap)
+
+    def set(idx: Int, value: TraitType): Unit =
+      domRecGenes(idx) = domRecGenes(idx).copy(value = value)
+
+    if kind == WingType.NoWings then
+      set(DomRecGeneStatic.Indices.noWings, TraitType.Dom)
+      domRecPropStatus(NoWings) = true
+    else
+      set(DomRecGeneStatic.Indices.noWings, TraitType.Sub)
+      domRecPropStatus(NoWings) = false
+      set(DomRecGeneStatic.Indices.wingFeathers, if kind.withFeathers then TraitType.Sub else TraitType.Dom)
+      domRecPropStatus(WingFeathers) = kind.withFeathers
+      kind match
+        case WingType.Angel =>
+          set(DomRecGeneStatic.Indices.alignment, TraitType.Dom) // good alignment
+          domRecPropStatus(AlignmentGood) = true
+          domRecPropStatus(AlignmentNeutral) = false
+          domRecPropStatus(AlignmentEvil) = false
+
+
+        case WingType.Paradise | WingType.Vestigial =>
+          set(DomRecGeneStatic.Indices.alignment, TraitType.Het)
+          domRecPropStatus(AlignmentGood) = false
+          domRecPropStatus(AlignmentNeutral) = true
+          domRecPropStatus(AlignmentEvil) = false
+        case WingType.Vulture | WingType.Bat =>
+          set(DomRecGeneStatic.Indices.alignment, TraitType.Sub)
+          domRecPropStatus(AlignmentGood) = false
+          domRecPropStatus(AlignmentNeutral) = false
+          domRecPropStatus(AlignmentEvil) = true
+        case _ => ()
+
+    copy(domRecGenes = domRecGenes.toVector, domRecPropertyStatus = domRecPropStatus.toMap)
+
+  def selectEarType(kind: EarType): MasterDogGene =
+    import DomRecGeneProperty.{None => _, *}
+    import DomRecGeneStatic.Indices
+
+    val domRecGenes = this.domRecGenes.toArray
+    val domRecPropStatus = this.domRecPropertyStatus.to(mut.HashMap)
+
+    def set(idx: Int, value: TraitType): Unit =
+      domRecGenes(idx) = domRecGenes(idx).copy(value = value)
+
+    set(Indices.earSharp, TraitType.Dom)
+    set(Indices.earConic, TraitType.Dom)
+    set(Indices.earFilled, TraitType.Dom)
+    set(Indices.earFloppiness, TraitType.Dom)
+    set(Indices.earHalved, TraitType.Dom)
+    set(Indices.tiltedEars, TraitType.Dom)
+
+    domRecPropStatus(EarSharp) = false
+    domRecPropStatus(EarConic) = false
+    domRecPropStatus(EarFilled) = false
+    domRecPropStatus(EarFloppy) = false
+    domRecPropStatus(EarPartialFlop) = false
+    domRecPropStatus(EarHalved) = false
+    domRecPropStatus(TiltedEars) = false
+
+
+    kind match
+      case EarType.TypeA =>
+        set(Indices.earFilled, TraitType.Sub)
+        domRecPropStatus(EarFilled) = true
+      case EarType.TypeB =>
+        set(Indices.earFilled, TraitType.Sub)
+        domRecPropStatus(EarFilled) = true
+        set(Indices.tiltedEars, TraitType.Het)
+        domRecPropStatus(TiltedEars) = true
+      case EarType.Blunt =>
+        set(Indices.earFilled, TraitType.Sub)
+        domRecPropStatus(EarFilled) = true
+        // the prop is genuinely in the Het position
+        set(Indices.earHalved, TraitType.Het)
+        domRecPropStatus(EarHalved) = true
+      case EarType.Bent =>
+        set(Indices.earFloppiness, TraitType.Het)
+        domRecPropStatus(EarFloppy) = true
+      case EarType.Bulbous =>
+        set(Indices.earSharp, TraitType.Sub)
+        domRecPropStatus(EarSharp) = true
+        // select EarFloppy
+        set(Indices.earFloppiness, TraitType.Het)
+        domRecPropStatus(EarFloppy) = true
+      case EarType.Horn =>
+        set(Indices.earConic, TraitType.Sub)
+        domRecPropStatus(EarConic) = true
+      case EarType.Cross =>
+        set(Indices.earSharp, TraitType.Sub)
+        domRecPropStatus(EarSharp) = true
+      case EarType.Twisted =>
+        set(Indices.earSharp, TraitType.Sub)
+        domRecPropStatus(EarSharp) = true
+
+        set(Indices.earConic, TraitType.Sub)
+        domRecPropStatus(EarConic) = true
+
+        set(Indices.earHalved, TraitType.Het)
+        domRecPropStatus(EarHalved) = true
+      // shepherd is the default case
+      case EarType.Shepherd => ()
+      case EarType.Wavy =>
+        // select ear partial flop
+        set(Indices.earFloppiness, TraitType.Sub)
+        domRecPropStatus(EarPartialFlop) = true
+
+    copy(domRecGenes = domRecGenes.toVector, domRecPropertyStatus = domRecPropStatus.toMap)
+
+  def selectHornType(kind: HornType): MasterDogGene =
+    import DomRecGeneProperty.{None => _, *}
+    import DomRecGeneStatic.Indices
+
+    val domRecGenes = this.domRecGenes.toArray
+    val domRecPropStatus = this.domRecPropertyStatus.to(mut.HashMap)
+
+    def set(idx: Int, value: TraitType): Unit =
+      domRecGenes(idx) = domRecGenes(idx).copy(value = value)
+
+    set(Indices.noHorns, TraitType.Sub)
+    set(Indices.hornsNub, TraitType.Dom)
+    set(Indices.hornsThin, TraitType.Dom)
+    set(Indices.hornsThick, TraitType.Dom)
+    set(Indices.hornsCurled, TraitType.Dom)
+
+    domRecPropStatus(HornsNone) = false
+    domRecPropStatus(HornsNub) = false
+    domRecPropStatus(HornsThin) = false
+    domRecPropStatus(HornsThick) = false
+    domRecPropStatus(HornsCurled) = false
+
+    kind match
+      case HornType.NoHorns =>
+        set(Indices.noHorns, TraitType.Dom)
+        domRecPropStatus(HornsNone) = true
+      case HornType.Nub =>
+        set(Indices.hornsNub, TraitType.Sub)
+        domRecPropStatus(HornsNub) = true
+      case HornType.Thick =>
+        set(Indices.hornsThick, TraitType.Sub)
+        domRecPropStatus(HornsThick) = true
+      case HornType.Thin =>
+        set(Indices.hornsThin, TraitType.Sub)
+        domRecPropStatus(HornsThin) = true
+      case HornType.Curled =>
+        set(Indices.hornsCurled, TraitType.Sub)
+        domRecPropStatus(HornsCurled) = true
+
+    copy(domRecGenes = domRecGenes.toVector, domRecPropertyStatus = domRecPropStatus.toMap)
+  def selectHornPlacement(kind: HornPlacement): MasterDogGene =
+    import DomRecGeneProperty.{None => _, *}
+    import DomRecGeneStatic.Indices
+
+    val domRecGenes = this.domRecGenes.toArray
+    val domRecPropStatus = this.domRecPropertyStatus.to(mut.HashMap)
+
+    def set(idx: Int, value: TraitType): Unit =
+      domRecGenes(idx) = domRecGenes(idx).copy(value = value)
+
+    set(Indices.centerHorns, TraitType.Dom)
+    set(Indices.traditionalHorns, TraitType.Dom)
+
+    domRecPropStatus(HornsCenter) = false
+    domRecPropStatus(HornsTraditional) = false
+
+    kind match
+      case HornPlacement.Center =>
+        set(Indices.centerHorns, TraitType.Sub)
+        domRecPropStatus(HornsCenter) = true
+      case HornPlacement.Traditional =>
+        set(Indices.traditionalHorns, TraitType.Sub)
+        domRecPropStatus(HornsTraditional) = true
+      case _ => ()
+
+    copy(domRecGenes = domRecGenes.toVector, domRecPropertyStatus = domRecPropStatus.toMap)
+
+  def selectTailType(kind: TailType): MasterDogGene =
+    import DomRecGeneProperty.{None => _, *}
+    import DomRecGeneStatic.Indices
+
+    val domRecGenes = this.domRecGenes.toArray
+    val domRecPropStatus = this.domRecPropertyStatus.to(mut.HashMap)
+
+    def set(idx: Int, value: TraitType): Unit =
+      domRecGenes(idx) = domRecGenes(idx).copy(value = value)
+
+    set(Indices.noNubTail, TraitType.Sub)
+    set(Indices.tailCurl, TraitType.Dom)
+    set(Indices.stiffTail, TraitType.Sub)
+    set(Indices.flatTail, TraitType.Dom)
+    set(Indices.bulbousTail, TraitType.Dom)
+    set(Indices.repeatedTail, TraitType.Dom)
+    set(Indices.thinTail, TraitType.Dom)
+    set(Indices.tail3D, TraitType.Dom)
+
+    domRecPropStatus(NoTail) = false
+    domRecPropStatus(NubTail) = false
+    domRecPropStatus(CurledTail) = false
+    domRecPropStatus(SlightlyCurledTail) = false
+    domRecPropStatus(StiffTail) = false
+    domRecPropStatus(FlatTail) = false
+    domRecPropStatus(BulbousTail) = false
+    domRecPropStatus(RepeatedTail) = false
+    domRecPropStatus(ThinTail) = false
+    domRecPropStatus(Tail3D) = false
+
+    case class TailFields
+      (noTail: Boolean = false
+      ,thinTail: Boolean = false
+      ,nubTail: Boolean = false
+      ,flatTail: Boolean = false
+      ,stiffTail: Boolean = false
+      ,bulbousTail: Boolean = false
+      ,tail3D: Boolean = false
+      ,repeatedTail: Boolean = false
+      ,curledTail: Boolean = false
+      ,slightlyCurledTail: Boolean = false)
+
+    val fields =
+      kind match
+        case TailType.NoTail =>
+          TailFields(noTail = true)
+        case TailType.Stiff =>
+          TailFields(stiffTail = true)
+        case TailType.StiffCurly =>
+          TailFields(stiffTail = true, curledTail = true)
+        case TailType.Flowy =>
+          // the default if tail3D is false
+          TailFields()
+        case TailType.Nub =>
+          TailFields(nubTail = true)
+        case TailType.StiffSlightlyCurly =>
+          TailFields(stiffTail = true, slightlyCurledTail = true)
+        case TailType.Bulbous =>
+          TailFields(tail3D = true, bulbousTail = true)
+        case TailType.Feral =>
+          TailFields(tail3D = true, repeatedTail = true, flatTail = true)
+        case TailType.Lifted =>
+          TailFields(tail3D = true, nubTail = true, slightlyCurledTail = true)
+        case TailType.Paddle =>
+          TailFields(tail3D = true, flatTail = true)
+        case TailType.Plume =>
+          TailFields(tail3D = true)
+        case TailType.Whip =>
+          TailFields(tail3D = true, thinTail = true, stiffTail = true)
+        case TailType.Curl =>
+          TailFields(tail3D = true, repeatedTail = true, slightlyCurledTail = true)
+        case TailType.DoubleCurl =>
+          TailFields(tail3D = true, repeatedTail = true, curledTail = true)
+        case TailType.Tri =>
+          TailFields(tail3D = true, bulbousTail = true, flatTail = true)
+
+    if fields.noTail then
+      set(Indices.noNubTail, TraitType.Dom)
+      domRecPropStatus(NoTail) = true
+
+    if fields.thinTail then
+      set(Indices.thinTail, TraitType.Sub)
+      domRecPropStatus(ThinTail) = true
+
+    if fields.nubTail then
+      set(Indices.noNubTail, TraitType.Het)
+      domRecPropStatus(NubTail) = true
+
+    if fields.flatTail then
+      set(Indices.flatTail, TraitType.Sub)
+      domRecPropStatus(FlatTail) = true
+
+    if fields.stiffTail then
+      set(Indices.stiffTail, TraitType.Dom)
+      domRecPropStatus(StiffTail) = true
+
+    if fields.bulbousTail then
+      set(Indices.bulbousTail, TraitType.Sub)
+      domRecPropStatus(BulbousTail) = true
+
+    if fields.tail3D then
+      set(Indices.tail3D, TraitType.Sub)
+      domRecPropStatus(Tail3D) = true
+
+    if fields.repeatedTail then
+      set(Indices.repeatedTail, TraitType.Sub)
+      domRecPropStatus(RepeatedTail) = true
+
+    if fields.curledTail then
+      set(Indices.tailCurl, TraitType.Sub)
+      domRecPropStatus(CurledTail) = true
+
+    if fields.slightlyCurledTail then
+      set(Indices.tailCurl, TraitType.Het)
+      domRecPropStatus(SlightlyCurledTail) = true
+
+    copy(domRecGenes = domRecGenes.toVector, domRecPropertyStatus = domRecPropStatus.toMap)
+  def selectNoseType(kind: NoseType): MasterDogGene =
+    import DomRecGeneProperty.{None => _, *}
+    import DomRecGeneStatic.Indices
+
+    val domRecGenes = this.domRecGenes.toArray
+    val domRecPropStatus = this.domRecPropertyStatus.to(mut.HashMap)
+
+    def set(idx: Int, value: TraitType): Unit =
+      domRecGenes(idx) = domRecGenes(idx).copy(value = value)
+
+    set(Indices.noseFlat, TraitType.Dom)
+    set(Indices.noseRepeated, TraitType.Dom)
+    set(Indices.noseExtrusion, TraitType.Dom)
+    set(Indices.noseSquishStretch, TraitType.Het)
+
+    domRecPropStatus(NoseFlat) = false
+    domRecPropStatus(NoseRepeated) = false
+    domRecPropStatus(NoseExtrusion) = false
+    domRecPropStatus(NoseSquish) = false
+    domRecPropStatus(NoseStretch) = false
+
+    case class NoseFields
+      (extrusion: Boolean = false
+      ,flat: Boolean = false
+      ,squish: Boolean = false
+      ,stretch: Boolean = false
+      ,repeated: Boolean = false
+      )
+
+    val NoseFields(hasExtrusion, hasFlat, hasSquish, hasStretch, hasRepeated) =
+      kind match
+        case NoseType.Wide =>
+          NoseFields(extrusion = true, repeated = true, squish = true)
+        case NoseType.Square =>
+          NoseFields(repeated = true, squish = true)
+        case NoseType.Pug =>
+          NoseFields(repeated = true, extrusion = true)
+        case NoseType.Mallow =>
+          NoseFields(repeated = true, flat = true)
+        case NoseType.Triangle =>
+          NoseFields(flat = true, stretch = true)
+        case NoseType.Greyhound =>
+          NoseFields(stretch = true)
+        case NoseType.Bulb =>
+          NoseFields(extrusion = true)
+        case NoseType.HalfMallow =>
+          NoseFields(flat = true)
+        case NoseType.TypeA =>
+          NoseFields()
+
+    if hasExtrusion then
+      // yes it IS het
+      set(Indices.noseExtrusion, TraitType.Het)
+      domRecPropStatus(NoseExtrusion) = true
+
+    if hasFlat then
+      set(Indices.noseFlat, TraitType.Sub)
+      domRecPropStatus(NoseFlat) = true
+
+    if hasSquish then
+      set(Indices.noseSquishStretch, TraitType.Dom)
+      domRecPropStatus(NoseSquish) = true
+
+    if hasStretch then
+      set(Indices.noseSquishStretch, TraitType.Sub)
+      domRecPropStatus(NoseStretch) = true
+
+    if hasRepeated then
+      set(Indices.noseRepeated, TraitType.Sub)
+      domRecPropStatus(NoseRepeated) = true
+
+
+
+    copy(domRecGenes = domRecGenes.toVector, domRecPropertyStatus = domRecPropStatus.toMap)
+
+  def selectMouthType(kind: MouthType): MasterDogGene =
+    import DomRecGeneProperty.{None => _, *}
+    import DomRecGeneStatic.Indices
+
+    val domRecGenes = this.domRecGenes.toArray
+    val domRecPropStatus = this.domRecPropertyStatus.to(mut.HashMap)
+
+    def set(idx: Int, value: TraitType): Unit =
+      val x = domRecGenes(idx)
+      domRecPropStatus(x.shared.dom) = false
+      domRecPropStatus(x.shared.het) = false
+      domRecPropStatus(x.shared.sub) = false
+      domRecPropStatus(x.shared(value).currentProperty) = true
+      domRecGenes(idx) = x.copy(value = value)
+
+    set(Indices.teeth, TraitType.Dom)
+    set(Indices.vMouth, TraitType.Dom)
+    set(Indices.openMouth, TraitType.Dom)
+    // select smile, it does nothing without any other selection
+    set(Indices.mouthEmotion, TraitType.Dom)
+    set(Indices.mouthCheeks, TraitType.Dom)
+    set(Indices.mouthMissingTeeth, TraitType.Dom)
+    set(Indices.mouthPointed, TraitType.Dom)
+    set(Indices.mouthCutoff, TraitType.Dom)
+    set(Indices.mouthWiggle, TraitType.Dom)
+
+
+    case class MouthFields
+      (teeth: Boolean = false
+      ,vMouth: Boolean = false
+      ,smile: Boolean = false
+      ,frown: Boolean = false
+      ,cheeks: Boolean = false
+      ,cutoff: Boolean = false
+      ,wiggle: Boolean = false
+      ,openMouth: Boolean = false
+      ,pointed: Boolean = false
+      ,neutral: Boolean = false
+      ,missingTeeth: Boolean = false)
+
+    val fields =
+      kind match
+        case MouthType.Standard =>
+          MouthFields(teeth = true, neutral = true)
+        case MouthType.MouthNone =>
+          MouthFields()
+        case MouthType.Simple =>
+          MouthFields(vMouth = true)
+        case MouthType.Ah =>
+          MouthFields(vMouth = true, openMouth = true)
+        case MouthType.Boom =>
+          MouthFields(teeth = true, frown = true)
+        case MouthType.Cheeky =>
+          MouthFields(cheeks = true)
+        case MouthType.Diamond =>
+          MouthFields(teeth = true, pointed = true)
+        case MouthType.Wise =>
+          MouthFields(teeth = true, cutoff = true)
+        case MouthType.MouthBreather =>
+          MouthFields(missingTeeth = true)
+        case MouthType.Pointed =>
+          MouthFields(frown = true)
+        case MouthType.Smug =>
+          MouthFields(teeth = true, smile = true)
+        case MouthType.Toothy =>
+          MouthFields(missingTeeth = true, pointed = true)
+        case MouthType.Blank =>
+          MouthFields(neutral = true)
+        case MouthType.Wobbly =>
+          MouthFields(teeth = true, wiggle = true)
+
+    if fields.teeth then
+      set(Indices.teeth, TraitType.Sub)
+    if fields.vMouth then
+      set(Indices.vMouth, TraitType.Sub)
+    if fields.openMouth then
+      set(Indices.openMouth, TraitType.Sub)
+    if fields.smile then
+      set(Indices.mouthEmotion, TraitType.Dom)
+    if fields.neutral then
+      set(Indices.mouthEmotion, TraitType.Het)
+    if fields.frown then
+      set(Indices.mouthEmotion, TraitType.Sub)
+    if fields.cheeks then
+      set(Indices.mouthCheeks, TraitType.Sub)
+    if fields.missingTeeth then
+      set(Indices.mouthMissingTeeth, TraitType.Sub)
+    if fields.pointed then
+      set(Indices.mouthPointed, TraitType.Sub)
+    if fields.cutoff then
+      set(Indices.mouthCutoff, TraitType.Sub)
+    if fields.wiggle then
+      set(Indices.mouthWiggle, TraitType.Sub)
+
+    copy(domRecGenes = domRecGenes.toVector, domRecPropertyStatus = domRecPropStatus.toMap)
   def updateDomRec(idx: Int, kind: TraitType): MasterDogGene =
     val old = this.domRecGenes(idx)
     val daNew = old.copy(value = kind)
@@ -336,6 +904,29 @@ case class MasterDogGene
     CalculatedMaterial(base, emission, metallic, glossiness)
 
 
+  def hornType: HornType = {
+    val hornsCenter = this.domRecPropertyStatus(DomRecGeneProperty.HornsCenter)
+    val hornsTraditional = this.domRecPropertyStatus(DomRecGeneProperty.HornsTraditional)
+    val noHorns = this.domRecPropertyStatus(DomRecGeneProperty.HornsNone)
+    val hornsCurled = this.domRecPropertyStatus(DomRecGeneProperty.HornsCurled)
+    val hornsNub = this.domRecPropertyStatus(DomRecGeneProperty.HornsNub)
+    val hornsThick = this.domRecPropertyStatus(DomRecGeneProperty.HornsThick)
+    val hornsThin = this.domRecPropertyStatus(DomRecGeneProperty.HornsThin)
+    // surpress the disabling of horns so it can be displayed in editor
+    if (noHorns /* || (!hornsCenter && !hornsTraditional) */ )
+      HornType.NoHorns
+    else if (hornsNub)
+      HornType.Nub
+    else if (hornsThick)
+      HornType.Thick
+    else if (hornsThin)
+      HornType.Thin
+    else if (hornsCurled)
+      HornType.Curled
+    else
+      HornType.NoHorns
+  }
+
   def earType: EarType =
     val earSharp = this.domRecPropertyStatus(DomRecGeneProperty.EarSharp)
     val earConic = this.domRecPropertyStatus(DomRecGeneProperty.EarConic)
@@ -368,6 +959,206 @@ case class MasterDogGene
     else
       EarType.Shepherd
 
+  val noseType: NoseType = {
+    val noseFlat = this.domRecPropertyStatus(DomRecGeneProperty.NoseFlat)
+    val noseSquish = this.domRecPropertyStatus(DomRecGeneProperty.NoseSquish)
+    val noseStretch = this.domRecPropertyStatus(DomRecGeneProperty.NoseStretch)
+    val noseRepeated = this.domRecPropertyStatus(DomRecGeneProperty.NoseRepeated)
+    val noseExtrusion = this.domRecPropertyStatus(DomRecGeneProperty.NoseExtrusion)
+
+    if (noseExtrusion && noseRepeated && noseSquish)
+      NoseType.Wide
+    else if (noseRepeated && noseSquish)
+      NoseType.Square
+    else if (noseRepeated && noseExtrusion)
+      NoseType.Pug
+    else if (noseRepeated && noseFlat)
+      NoseType.Mallow
+    else if (noseFlat && noseStretch)
+      NoseType.Triangle
+    else if (noseStretch)
+      NoseType.Greyhound
+    else if (noseExtrusion)
+      NoseType.Bulb
+    else if (noseFlat)
+      NoseType.HalfMallow
+    else
+      NoseType.TypeA
+  }
+
+  def hornPlacement: HornPlacement = {
+    val centerHorn = this.domRecPropertyStatus(DomRecGeneProperty.HornsCenter)
+    val traditionalHorns = this.domRecPropertyStatus(DomRecGeneProperty.HornsTraditional)
+    if (centerHorn)
+      HornPlacement.Center
+    else if (traditionalHorns)
+      HornPlacement.Traditional
+    else
+      HornPlacement.None
+  }
+
+  def tailType: TailType = {
+    val noTail = this.domRecPropertyStatus(DomRecGeneProperty.NoTail)
+    val thinTail = this.domRecPropertyStatus(DomRecGeneProperty.ThinTail)
+    val nubTail = this.domRecPropertyStatus(DomRecGeneProperty.NubTail)
+    val flatTail = this.domRecPropertyStatus(DomRecGeneProperty.FlatTail)
+    val stiffTail = this.domRecPropertyStatus(DomRecGeneProperty.StiffTail)
+    val bulbousTail = this.domRecPropertyStatus(DomRecGeneProperty.BulbousTail)
+    val tail3D = this.domRecPropertyStatus(DomRecGeneProperty.Tail3D)
+    val repeatedTail = this.domRecPropertyStatus(DomRecGeneProperty.RepeatedTail)
+    val curledTail = this.domRecPropertyStatus(DomRecGeneProperty.CurledTail)
+    val slightlyCurledTail = this.domRecPropertyStatus(DomRecGeneProperty.SlightlyCurledTail)
+    if (noTail)
+      TailType.NoTail
+    else if (!tail3D) {
+      if (stiffTail) {
+        if (slightlyCurledTail)
+          TailType.StiffSlightlyCurly
+        else if (curledTail)
+          TailType.StiffCurly
+        else
+          TailType.Stiff
+      } else if (nubTail)
+        TailType.Nub
+      else
+        TailType.Flowy
+    } else if (nubTail && slightlyCurledTail)
+      TailType.Lifted
+    else if (thinTail && stiffTail)
+      TailType.Whip
+    else if (repeatedTail && slightlyCurledTail)
+      TailType.Curl
+    else if (repeatedTail && curledTail)
+      TailType.DoubleCurl
+    else if (repeatedTail && flatTail)
+      TailType.Feral
+    else if (bulbousTail && flatTail)
+      TailType.Tri
+    else if (bulbousTail)
+      TailType.Bulbous
+    else if (flatTail)
+      TailType.Paddle
+    else
+      TailType.Plume
+  }
+
+  val wingType = {
+    val noWings = this.domRecPropertyStatus(DomRecGeneProperty.NoWings)
+    val alignmentGood = this.domRecPropertyStatus(DomRecGeneProperty.AlignmentGood)
+    val alignmentEvil = this.domRecPropertyStatus(DomRecGeneProperty.AlignmentEvil)
+    val wingFeathers = this.domRecPropertyStatus(DomRecGeneProperty.WingFeathers)
+    val wingIssues = this.domRecPropertyStatus(DomRecGeneProperty.WingIssues)
+    val alignmentNeutral = this.domRecPropertyStatus(DomRecGeneProperty.AlignmentNeutral)
+    val missingLeftWing = wingIssues && this.domRecPropertyStatus(DomRecGeneProperty.MissingLeftWing)
+    val missingRightWing = wingIssues && this.domRecPropertyStatus(DomRecGeneProperty.MissingRightWing)
+
+    if (noWings || (missingLeftWing && missingRightWing)) {
+      WingType.NoWings
+    } else if (!wingFeathers) {
+      if (alignmentEvil)
+        WingType.Bat
+      else
+        WingType.Vestigial
+    } else if (alignmentNeutral)
+      WingType.Paradise
+    else if (alignmentGood)
+      WingType.Angel
+    else if (alignmentEvil)
+      WingType.Vulture
+    else
+      WingType.NoWings
+  }
+
+  def eyeType: EyeType = {
+    val eyelids = this.domRecPropertyStatus(DomRecGeneProperty.Eyelids)
+    val oblongEyes = this.domRecPropertyStatus(DomRecGeneProperty.OblongEyes)
+    val smallPupils = this.domRecPropertyStatus(DomRecGeneProperty.SmallPupils)
+    val multiPupils = this.domRecPropertyStatus(DomRecGeneProperty.MultiPupils)
+    val geometricEyes = this.domRecPropertyStatus(DomRecGeneProperty.GeometricEyes)
+    val decorativeEyes = this.domRecPropertyStatus(DomRecGeneProperty.DecorativeEyes)
+    val lashesEyes = this.domRecPropertyStatus(DomRecGeneProperty.LashesEyes)
+    val longEyes = this.domRecPropertyStatus(DomRecGeneProperty.LongEyes)
+    val missingPupilEyes = this.domRecPropertyStatus(DomRecGeneProperty.MissingPupilEyes)
+    val horizontalEyes = this.domRecPropertyStatus(DomRecGeneProperty.HorizontalEyes)
+    val spiralEyes = this.domRecPropertyStatus(DomRecGeneProperty.SpiralEyes)
+    val triangleEyes = this.domRecPropertyStatus(DomRecGeneProperty.TriangleEyes)
+    if (oblongEyes && multiPupils) {
+      EyeType.Double
+    } else if (smallPupils && multiPupils) {
+      EyeType.Spider
+    } else if (geometricEyes && spiralEyes) {
+      EyeType.Hex
+    } else if (horizontalEyes && longEyes) {
+      EyeType.Slim
+    } else if (horizontalEyes && oblongEyes)
+      EyeType.Puck
+    else if (missingPupilEyes && multiPupils)
+      EyeType.Mitosis
+    else if (eyelids)
+      EyeType.Lidded
+    else if (oblongEyes)
+      EyeType.Oblong
+    else if (smallPupils)
+      EyeType.Concerned
+    else if (triangleEyes)
+      EyeType.Triangle
+    else if (geometricEyes)
+      EyeType.Square
+    else if (lashesEyes)
+      EyeType.Lashes
+    else if (spiralEyes)
+      EyeType.Spiral
+    else if (missingPupilEyes)
+      EyeType.Pupilless
+    else if (decorativeEyes)
+      EyeType.Keyhole
+    else
+      EyeType.Standard
+  }
+
+  def mouthType: MouthType = {
+    val teeth = this.domRecPropertyStatus(DomRecGeneProperty.Teeth)
+    val vMouth = this.domRecPropertyStatus(DomRecGeneProperty.VMouth)
+    val mouthSmile = this.domRecPropertyStatus(DomRecGeneProperty.MouthSmile)
+    val mouthFrown = this.domRecPropertyStatus(DomRecGeneProperty.MouthFrown)
+    val mouthCheeks = this.domRecPropertyStatus(DomRecGeneProperty.MouthCheeks)
+    val mouthCutoff = this.domRecPropertyStatus(DomRecGeneProperty.MouthCutoff)
+    val mouthWiggle = this.domRecPropertyStatus(DomRecGeneProperty.MouthWiggle)
+    val openMouth = this.domRecPropertyStatus(DomRecGeneProperty.OpenMouth)
+    val mouthPointed = this.domRecPropertyStatus(DomRecGeneProperty.MouthPointed)
+    val mouthNeutral = this.domRecPropertyStatus(DomRecGeneProperty.MouthNeutral)
+    val mouthMissingTeeth = this.domRecPropertyStatus(DomRecGeneProperty.MouthMissingTeeth)
+
+    if (teeth && mouthNeutral)
+      MouthType.Standard
+    else if (vMouth && openMouth)
+      MouthType.Ah
+    else if (teeth && mouthPointed)
+      MouthType.Diamond
+    else if (teeth && mouthCutoff)
+      MouthType.Wise
+    else if (teeth && mouthWiggle)
+      MouthType.Wobbly
+    else if (teeth && mouthFrown)
+      MouthType.Boom
+    else if (teeth && mouthSmile)
+      MouthType.Smug
+    else if (mouthMissingTeeth && mouthPointed)
+      MouthType.Toothy
+    else if (mouthMissingTeeth)
+      MouthType.MouthBreather
+    else if (mouthNeutral && !openMouth)
+      MouthType.Blank
+    else if (mouthCheeks)
+      MouthType.Cheeky
+    else if (vMouth)
+      MouthType.Simple
+    else if (mouthFrown)
+      MouthType.Pointed
+    else
+      MouthType.MouthNone
+  }
+
   def boundsFor(prop: Gene)(using dog: DogContext): Option[(Float, Float)] =
     prop match
       case x: AgeBasedBounds => Some((x.minBound, DogMath.ageModifiedValue(x.puppyMax, x.maxBound, dog.age)))
@@ -380,135 +1171,6 @@ case class MasterDogGene
       case _ => None
 
   def calculateGenes()(using dog: DogContext): CalculatedGenes = {
-    val wingType = {
-      val noWings = this.domRecPropertyStatus(DomRecGeneProperty.NoWings)
-      val alignmentGood = this.domRecPropertyStatus(DomRecGeneProperty.AlignmentGood)
-      val alignmentEvil = this.domRecPropertyStatus(DomRecGeneProperty.AlignmentEvil)
-      val wingFeathers = this.domRecPropertyStatus(DomRecGeneProperty.WingFeathers)
-      val wingIssues = this.domRecPropertyStatus(DomRecGeneProperty.WingIssues)
-      val alignmentNeutral = this.domRecPropertyStatus(DomRecGeneProperty.AlignmentNeutral)
-      val missingLeftWing = wingIssues && this.domRecPropertyStatus(DomRecGeneProperty.MissingLeftWing)
-      val missingRightWing = wingIssues && this.domRecPropertyStatus(DomRecGeneProperty.MissingRightWing)
-
-      if (noWings || (missingLeftWing && missingRightWing)) {
-        WingType.NoWings
-      } else if (!wingFeathers) {
-        if (alignmentEvil)
-          WingType.Bat
-        else
-          WingType.Vestigial
-      } else if (alignmentNeutral)
-        WingType.Paradise
-      else if (alignmentGood)
-        WingType.Angel
-      else if (alignmentEvil)
-        WingType.Vulture
-      else
-        WingType.NoWings
-    }
-    val noseType = {
-      val noseFlat = this.domRecPropertyStatus(DomRecGeneProperty.NoseFlat)
-      val noseSquish = this.domRecPropertyStatus(DomRecGeneProperty.NoseSquish)
-      val noseStretch = this.domRecPropertyStatus(DomRecGeneProperty.NoseStretch)
-      val noseRepeated = this.domRecPropertyStatus(DomRecGeneProperty.NoseRepeated)
-      val noseExtrusion = this.domRecPropertyStatus(DomRecGeneProperty.NoseExtrusion)
-
-      if (noseExtrusion && noseRepeated && noseSquish)
-        NoseType.Wide
-      else if (noseRepeated && noseSquish)
-        NoseType.Square
-      else if (noseRepeated && noseExtrusion)
-        NoseType.Pug
-      else if (noseRepeated && noseFlat)
-        NoseType.Mallow
-      else if (noseFlat && noseStretch)
-        NoseType.Triangle
-      else if (noseStretch)
-        NoseType.Greyhound
-      else if (noseExtrusion)
-        NoseType.Bulb
-      else if (noseFlat)
-        NoseType.HalfMallow
-      else
-        NoseType.TypeA
-    }
-
-    val earType = this.earType
-    val hornType = {
-      val hornsCenter = this.domRecPropertyStatus(DomRecGeneProperty.HornsCenter)
-      val hornsTraditional = this.domRecPropertyStatus(DomRecGeneProperty.HornsTraditional)
-      val noHorns = this.domRecPropertyStatus(DomRecGeneProperty.HornsNone)
-      val hornsCurled = this.domRecPropertyStatus(DomRecGeneProperty.HornsCurled)
-      val hornsNub = this.domRecPropertyStatus(DomRecGeneProperty.HornsNub)
-      val hornsThick = this.domRecPropertyStatus(DomRecGeneProperty.HornsThick)
-      val hornsThin = this.domRecPropertyStatus(DomRecGeneProperty.HornsThin)
-      if (noHorns || (!hornsCenter && !hornsTraditional))
-        HornType.NoHorns
-      else if (hornsNub)
-        HornType.Nub
-      else if (hornsThick)
-        HornType.Thick
-      else if (hornsThin)
-        HornType.Thin
-      else if (hornsCurled)
-        HornType.Curled
-      else
-        HornType.NoHorns
-    }
-    val hornPlacement = {
-      val centerHorn = this.domRecPropertyStatus(DomRecGeneProperty.HornsCenter)
-      val traditionalHorns = this.domRecPropertyStatus(DomRecGeneProperty.HornsTraditional)
-      if (centerHorn)
-        HornPlacement.HornPlacementCenter
-      else if (traditionalHorns)
-        HornPlacement.HornPlacementTraditional
-      else
-        HornPlacement.HornPlacementNone
-    }
-    val tailType = {
-      val noTail = this.domRecPropertyStatus(DomRecGeneProperty.NoTail)
-      val thinTail = this.domRecPropertyStatus(DomRecGeneProperty.ThinTail)
-      val nubTail = this.domRecPropertyStatus(DomRecGeneProperty.NubTail)
-      val flatTail = this.domRecPropertyStatus(DomRecGeneProperty.FlatTail)
-      val stiffTail = this.domRecPropertyStatus(DomRecGeneProperty.StiffTail)
-      val bulbousTail = this.domRecPropertyStatus(DomRecGeneProperty.BulbousTail)
-      val tail3D = this.domRecPropertyStatus(DomRecGeneProperty.Tail3D)
-      val repeatedTail = this.domRecPropertyStatus(DomRecGeneProperty.RepeatedTail)
-      val curledTail = this.domRecPropertyStatus(DomRecGeneProperty.CurledTail)
-      val slightlyCurledTail = this.domRecPropertyStatus(DomRecGeneProperty.SlightlyCurledTail)
-      if (noTail)
-        TailType.NoTail
-      else if (!tail3D) {
-        if (stiffTail) {
-          if (slightlyCurledTail)
-            TailType.StiffSlightlyCurly
-          else if (curledTail)
-            TailType.StiffCurly
-          else
-            TailType.Stiff
-        } else if (nubTail)
-          TailType.Nub
-        else
-          TailType.Flowy
-      } else if (nubTail && slightlyCurledTail)
-        TailType.Lifted
-      else if (thinTail && stiffTail)
-        TailType.Whip
-      else if (repeatedTail && slightlyCurledTail)
-        TailType.Curl
-      else if (repeatedTail && curledTail)
-        TailType.DoubleCurl
-      else if (repeatedTail && flatTail)
-        TailType.Feral
-      else if (bulbousTail && flatTail)
-        TailType.Tri
-      else if (bulbousTail)
-        TailType.Bulbous
-      else if (flatTail)
-        TailType.Paddle
-      else
-        TailType.Plume
-    }
     var frontLegPairs =
       math.max(1,
         math.floor(this.inferFloatFromGene(GeneticProperty.LegPairsFront) / Dog.legNumberIncreaseRate).toInt
@@ -539,97 +1201,6 @@ case class MasterDogGene
       frontLegPairs = 1
     if (backLegPairs < 1)
       backLegPairs = 1
-
-
-    val eyeType = {
-      val eyelids = this.domRecPropertyStatus(DomRecGeneProperty.Eyelids)
-      val oblongEyes = this.domRecPropertyStatus(DomRecGeneProperty.OblongEyes)
-      val smallPupils = this.domRecPropertyStatus(DomRecGeneProperty.SmallPupils)
-      val multiPupils = this.domRecPropertyStatus(DomRecGeneProperty.MultiPupils)
-      val geometricEyes = this.domRecPropertyStatus(DomRecGeneProperty.GeometricEyes)
-      val decorativeEyes = this.domRecPropertyStatus(DomRecGeneProperty.DecorativeEyes)
-      val lashesEyes = this.domRecPropertyStatus(DomRecGeneProperty.LashesEyes)
-      val longEyes = this.domRecPropertyStatus(DomRecGeneProperty.LongEyes)
-      val missingPupilEyes = this.domRecPropertyStatus(DomRecGeneProperty.MissingPupilEyes)
-      val horizontalEyes = this.domRecPropertyStatus(DomRecGeneProperty.HorizontalEyes)
-      val spiralEyes = this.domRecPropertyStatus(DomRecGeneProperty.SpiralEyes)
-      val triangleEyes = this.domRecPropertyStatus(DomRecGeneProperty.TriangleEyes)
-      if (oblongEyes && multiPupils) {
-        EyeType.Double
-      } else if (smallPupils && multiPupils) {
-        EyeType.Spider
-      } else if (geometricEyes && spiralEyes) {
-        EyeType.Hex
-      } else if (horizontalEyes && longEyes) {
-        EyeType.Slim
-      } else if (horizontalEyes && oblongEyes)
-        EyeType.Puck
-      else if (missingPupilEyes && multiPupils)
-        EyeType.Mitosis
-      else if (eyelids)
-        EyeType.Lidded
-      else if (oblongEyes)
-        EyeType.Oblong
-      else if (smallPupils)
-        EyeType.Concerned
-      else if (triangleEyes)
-        EyeType.Triangle
-      else if (geometricEyes)
-        EyeType.Square
-      else if (lashesEyes)
-        EyeType.Lashes
-      else if (spiralEyes)
-        EyeType.Spiral
-      else if (missingPupilEyes)
-        EyeType.Pupilless
-      else if (decorativeEyes)
-        EyeType.Keyhole
-      else
-        EyeType.Standard
-    }
-
-    val mouthType = {
-      val teeth = this.domRecPropertyStatus(DomRecGeneProperty.Teeth)
-      val vMouth = this.domRecPropertyStatus(DomRecGeneProperty.VMouth)
-      val mouthSmile = this.domRecPropertyStatus(DomRecGeneProperty.MouthSmile)
-      val mouthFrown = this.domRecPropertyStatus(DomRecGeneProperty.MouthFrown)
-      val mouthCheeks = this.domRecPropertyStatus(DomRecGeneProperty.MouthCheeks)
-      val mouthCutoff = this.domRecPropertyStatus(DomRecGeneProperty.MouthCutoff)
-      val mouthWiggle = this.domRecPropertyStatus(DomRecGeneProperty.MouthWiggle)
-      val openMouth = this.domRecPropertyStatus(DomRecGeneProperty.OpenMouth)
-      val mouthPointed = this.domRecPropertyStatus(DomRecGeneProperty.MouthPointed)
-      val mouthNeutral = this.domRecPropertyStatus(DomRecGeneProperty.MouthNeutral)
-      val mouthMissingTeeth = this.domRecPropertyStatus(DomRecGeneProperty.MouthMissingTeeth)
-
-      if (teeth && mouthNeutral)
-        MouthType.Standard
-      else if (vMouth && openMouth)
-        MouthType.Ah
-      else if (teeth && mouthPointed)
-        MouthType.Diamond
-      else if (teeth && mouthCutoff)
-        MouthType.Wise
-      else if (teeth && mouthWiggle)
-        MouthType.Wobbly
-      else if (teeth && mouthFrown)
-        MouthType.Boom
-      else if (teeth && mouthSmile)
-        MouthType.Smug
-      else if (mouthMissingTeeth && mouthPointed)
-        MouthType.Toothy
-      else if (mouthMissingTeeth)
-        MouthType.MouthBreather
-      else if (mouthNeutral && !openMouth)
-        MouthType.Blank
-      else if (mouthCheeks)
-        MouthType.Cheeky
-      else if (vMouth)
-        MouthType.Simple
-      else if (mouthFrown)
-        MouthType.Pointed
-      else
-        MouthType.MouthNone
-    }
 
     val floatMap = mut.LinkedHashMap[Gene, CalculatedValue]()
     val integralMap = mut.LinkedHashMap[Gene, Int]()
@@ -732,7 +1303,7 @@ object MasterDogGene {
           then TraitType.Dom
           else TraitType.Sub
       domRecGene(ttype)
-    }.toList
+    }.toVector
     DomRecGeneProperty.values.foreach { it =>
       domRecPropertyStatus(it) = false
     }

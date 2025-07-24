@@ -22,7 +22,7 @@ import scala.deriving.Mirror
 
 
 object Main extends IOWebApp {
-  import net.bulbyvr.wobblelab.*
+  import net.bulbyvr.wobblelab.{*, given}
 
   inline def summonSingletonCases[T <: Tuple, A](inline typeName: Any): List[A] =
     inline erasedValue[T] match
@@ -50,6 +50,12 @@ object Main extends IOWebApp {
     }
 
   val percentFormat = new DecimalFormat("0.##%")
+
+  def formatPercent(f: Float): String =
+    if f.isNaN || f.isInfinite then
+      "???%"
+    else
+      percentFormat.format(f)
   
   def matSection(dog: SignallingRef[IO, GameDog], mat: Signal[IO, CalculatedMaterial], name: String, part: DogMaterialPart): Resource[IO, HtmlElement[IO]] =
     val geneDawg = SignallingRef.lens[IO, GameDog, MasterDogGene](dog)(_.masterGene, src => gene => {
@@ -59,15 +65,15 @@ object Main extends IOWebApp {
     div(
       p(name + " color: ", mat.map(_.base.showOpaque), "  ", matColor(part, geneDawg, mat, _.base, src => it => src.updatePartBase(part, it))),
       p(name + " emission color: ", mat.map(_.emission.showOpaque), "  ", matColor(part, geneDawg, mat, _.emission, src => it => src.updatePartEmission(part, it))),
-      p(name + " metallic: ", mat.map(it => percentFormat.format(it.metallic))),
-      p(name + " glossiness: ", mat.map(it => percentFormat.format(it.glossiness)))
+      p(name + " metallic: ", mat.map(it => formatPercent(it.metallic))),
+      p(name + " glossiness: ", mat.map(it => formatPercent(it.glossiness)))
     )
 
   def geneFloatResult(dog: SignallingRef[IO, GameDog], calculatedSignal: Signal[IO, db.CalculatedGenes], gene: Gene): Resource[IO, HtmlElement[IO]] = {
     SignallingRef.of[IO, Option[NonEmptyChain[String]]](None).toResource.flatMap: error =>
       p(
         gene.displayName + ": ",
-        calculatedSignal.map(it => percentFormat.format(it.floatItems(gene).percentage)),
+        calculatedSignal.map(it => formatPercent(it.floatItems(gene).percentage)),
         input.withSelf { self =>
           (
             tpe := "text",
@@ -98,18 +104,26 @@ object Main extends IOWebApp {
 
   def resultPane(dog: SignallingRef[IO, GameDog]): Resource[IO, HtmlElement[IO]] = {
     val calculatedSignal = dog.map(_.calculatedGenes)
+    val earType = SignallingRef.lens[IO, GameDog, EarType](dog)(_.masterGene.earType, src => it => src.copy(masterGene = src.masterGene.selectEarType(it)))
+    val hornType = SignallingRef.lens[IO, GameDog, HornType](dog)(_.masterGene.hornType, src => it => src.copy(masterGene = src.masterGene.selectHornType(it)))
+    val hornPlacement = SignallingRef.lens[IO, GameDog, HornPlacement](dog)(_.masterGene.hornPlacement, src => it => src.copy(masterGene = src.masterGene.selectHornPlacement(it)))
+    val noseType = SignallingRef.lens[IO, GameDog, NoseType](dog)(_.masterGene.noseType, src => it => src.copy(masterGene = src.masterGene.selectNoseType(it)))
+    val tailType = SignallingRef.lens[IO, GameDog, TailType](dog)(_.masterGene.tailType, src => it => src.copy(masterGene = src.masterGene.selectTailType(it)))
+    val wingType = SignallingRef.lens[IO, GameDog, WingType](dog)(_.masterGene.wingType, src => it => src.copy(masterGene = src.masterGene.selectWingType(it)))
+    val eyeType = SignallingRef.lens[IO, GameDog, EyeType](dog)(_.masterGene.eyeType, src => it => src.copy(masterGene = src.masterGene.selectEyeType(it)))
+    val mouthType = SignallingRef.lens[IO, GameDog, MouthType](dog)(_.masterGene.mouthType, src => it => src.copy(masterGene = src.masterGene.selectMouthType(it)))
 
     div(
       cls := "scrollView",
       div(
-        p("Horn type: ", calculatedSignal.map(_.hornType.display)),
-        p("Horn placement: ", calculatedSignal.map(_.hornPlacement.display)),
-        p("Ear type: ", calculatedSignal.map(_.earType.display)),
-        p("Nose type: ", calculatedSignal.map(_.noseType.display)),
-        p("Tail type: ", calculatedSignal.map(_.tailType.display)),
-        p("Wing type: ", calculatedSignal.map(_.wingType.display)),
-        p("Eye type: ", calculatedSignal.map(_.eyeType.displayName)),
-        p("Mouth type: ", calculatedSignal.map(_.mouthType.displayName)),
+        personalityBinder[HornType](hornType, "Horn type: "),
+        personalityBinder[HornPlacement](hornPlacement, "Horn placement: "),
+        personalityBinder[EarType](earType, "Ear type: "),
+        personalityBinder[NoseType](noseType, "Nose type: "),
+        personalityBinder[TailType](tailType, "Tail type: "),
+        personalityBinder[WingType](wingType, "Wing type: "),
+        personalityBinder[EyeType](eyeType, "Eye type: "),
+        personalityBinder[MouthType](mouthType, "Mouth type: "),
         div(
           children <-- calculatedSignal.map(_.integralItems.iterator.toList.map { (gene, value) =>
             p(gene.displayName + ": ", value.toString)
@@ -136,7 +150,7 @@ object Main extends IOWebApp {
           "Age:",
           select.withSelf { self =>
             (
-              DogAge.values.filter(_ != DogAge.Empty).map(it => option(value := it.ordinal.toString, it.toString)).toList,
+              DogAge.values.filter(_ != DogAge.Empty).map(it => option(value := it.ordinal.toString, util.PrettyPrint[DogAge].prettyPrint(it))).toList,
               onChange --> {
                 _.evalMap(_ => self.value.get).map(DogAge.parseString).foreach(ageSignal.set)
               },
@@ -223,12 +237,12 @@ object Main extends IOWebApp {
               }
             )}
             )
-          }
+          }.toList
         }
       )
     )
   }
-  inline def personalityBinder[T <: scala.reflect.Enum](personalitySignal: SignallingRef[IO, T], name: String)(using mirror: deriving.Mirror.SumOf[T]): Resource[IO, HtmlElement[IO]] = {
+  inline def personalityBinder[T <: scala.reflect.Enum](personalitySignal: SignallingRef[IO, T], name: String)(using mirror: deriving.Mirror.SumOf[T], pretty: util.PrettyPrint[T]): Resource[IO, HtmlElement[IO]] = {
     val cases = summonSingletonCases[mirror.MirroredElemTypes, T](constValue[mirror.MirroredLabel])
     val caseOf = cases.toVector
     div(
@@ -236,7 +250,7 @@ object Main extends IOWebApp {
       name,
       select.withSelf {self =>
         (
-          cases.map(it => option(value := it.ordinal.toString, it.toString)),
+          cases.map(it => option(value := it.ordinal.toString, pretty.prettyPrint(it))),
           value <-- personalitySignal.map(_.ordinal.toString),
           onChange --> {
             _.evalMap(_ => self.value.get).map(_.toIntOption).unNone.map(caseOf).foreach(personalitySignal.set)

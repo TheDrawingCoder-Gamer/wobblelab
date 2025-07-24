@@ -121,6 +121,13 @@ enum EnergyPersonality(id: Int) {
   case StandardEnergy extends EnergyPersonality(1)
   case Layabout extends EnergyPersonality(2)
 }
+
+given util.PrettyPrint[EnergyPersonality] =
+  case EnergyPersonality.Goof => "High Energy"
+  case EnergyPersonality.StandardEnergy => "Standard"
+  case EnergyPersonality.Layabout => "Layabout"
+
+
 object EnergyPersonality {
   def parseString(str: String): EnergyPersonality = {
     EnergyPersonality.fromOrdinal(str.toInt)
@@ -132,6 +139,12 @@ enum LoudnessPersonality(id: Int) {
   case Loud extends LoudnessPersonality(1)
   case Quiet extends LoudnessPersonality(2)
 }
+
+given util.PrettyPrint[LoudnessPersonality] =
+  case LoudnessPersonality.StandardLoud => "Standard"
+  case LoudnessPersonality.Loud => "Loud"
+  case LoudnessPersonality.Quiet => "Quiet"
+
 object LoudnessPersonality {
   def parseString(str: String): LoudnessPersonality = {
     str.toIntOption.map { it => LoudnessPersonality.fromOrdinal(it) }.getOrElse(LoudnessPersonality.StandardLoud)
@@ -141,8 +154,14 @@ object LoudnessPersonality {
 enum MischiefPersonality(id: Int) {
   case Polite extends MischiefPersonality(0)
   case StandardMischief extends MischiefPersonality(1)
-  case Mischevious extends MischiefPersonality(2)
+  case Mischievous extends MischiefPersonality(2)
 }
+
+given util.PrettyPrint[MischiefPersonality] =
+  case MischiefPersonality.Polite => "Polite"
+  case MischiefPersonality.StandardMischief => "Standard"
+  case MischiefPersonality.Mischievous => "Rude"
+
 object MischiefPersonality {
   def parseString(str: String) =
     MischiefPersonality.fromOrdinal(str.toInt)
@@ -151,6 +170,11 @@ enum PettablePersonality(id: Int) {
   case LikesPetting extends PettablePersonality(0)
   case DislikesPetting extends PettablePersonality(1)
 }
+
+given util.PrettyPrint[PettablePersonality] =
+  case PettablePersonality.LikesPetting => "Likes Petting"
+  case PettablePersonality.DislikesPetting => "Unpettable"
+
 object PettablePersonality {
   def parseString(str: String) =
     PettablePersonality.fromOrdinal(str.toInt)
@@ -160,6 +184,12 @@ enum FoodPersonality(id: Int) {
   case Standard extends FoodPersonality(1)
   case FoodAverse extends FoodPersonality(2)
 }
+
+given util.PrettyPrint[FoodPersonality] =
+  case FoodPersonality.Glutton => "Glutton"
+  case FoodPersonality.Standard => "Standard"
+  case FoodPersonality.FoodAverse => "Food Averse"
+
 object FoodPersonality {
   def parseString(str: String) =
     FoodPersonality.fromOrdinal(str.toInt)
@@ -169,6 +199,12 @@ enum NicenessPersonality {
   case NiceStandard
   case Mean
 }
+
+given util.PrettyPrint[NicenessPersonality] =
+  case NicenessPersonality.Nice => "Nice"
+  case NicenessPersonality.NiceStandard => "Standard"
+  case NicenessPersonality.Mean => "Antagonistic"
+
 object NicenessPersonality {
   def parseString(str: String) =
     NicenessPersonality.fromOrdinal(str.toInt)
@@ -178,6 +214,12 @@ enum SocialPersonality {
   case SocialStandard
   case Aloof
 }
+
+given util.PrettyPrint[SocialPersonality] =
+  case SocialPersonality.Social => "Social"
+  case SocialPersonality.SocialStandard => "Standard"
+  case SocialPersonality.Aloof => "Aloof"
+
 object SocialPersonality {
   def parseString(str: String) =
     SocialPersonality.fromOrdinal(str.toInt)
@@ -194,6 +236,16 @@ enum DogAge {
   def ratio: Float =
     this.ordinal.toFloat / DogAge.values.length
 }
+
+given util.PrettyPrint[DogAge] =
+  case DogAge.Empty => "(None)"
+  case DogAge.Puppy => "Puppy"
+  case DogAge.Child => "Child"
+  case DogAge.Teen => "Teen"
+  case DogAge.YoungAdult => "Young Adult"
+  case DogAge.Adult => "Adult"
+  case DogAge.Ancient => "Ancient"
+
 object DogAge {
   def parseString(str: String) =
     str.toIntOption match {
@@ -336,12 +388,12 @@ object Dog {
   val splotchChance10: Float = 5f
   val splotchChance64: Float = 85f
   val splotchChance128: Float = 99f
-  
+
   val stripeInfoSize: Float = 100f
-  
+
   val numRepeatingTypes: Int = 5
-  
-  
+
+
   // ???
   val legNumberCap: Int = 6
   val legNumberHardCap: Int = 30

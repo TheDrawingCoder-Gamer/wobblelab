@@ -9,6 +9,8 @@ enum NoseType(val display: String) {
   case Mallow extends NoseType("Mallow")
   case Pug extends NoseType("Pug")
   case Square extends NoseType("Square")
-  case Triangle extends NoseType("Triangle")
+  case Triangle extends NoseType("Wedge")
   case Wide extends NoseType("Wide")
 }
+
+given util.PrettyPrint[NoseType] = _.display

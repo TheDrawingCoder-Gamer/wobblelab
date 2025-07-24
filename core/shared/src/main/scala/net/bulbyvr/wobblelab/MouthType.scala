@@ -6,7 +6,7 @@ enum MouthType(val displayName: String) {
   case MouthNone extends MouthType("None")
   case Simple extends MouthType("Simple")
   case Ah extends MouthType("Ah")
-  case Boom extends MouthType("Boom")
+  case Boom extends MouthType("Boomerang")
   case Cheeky extends MouthType("Cheeky")
   case Diamond extends MouthType("Diamond")
   case Wise extends MouthType("Wiseguy")
@@ -16,5 +16,6 @@ enum MouthType(val displayName: String) {
   case Toothy extends MouthType("Toothy")
   case Blank extends MouthType("Blank")
   case Wobbly extends MouthType("Wobbly")
-
 }
+
+given util.PrettyPrint[MouthType] = _.displayName

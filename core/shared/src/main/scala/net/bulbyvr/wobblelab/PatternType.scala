@@ -5,3 +5,5 @@ enum PatternType:
   case Stripes
   case Splotches
   case Repeating
+  
+given util.PrettyPrint[PatternType] = _.toString

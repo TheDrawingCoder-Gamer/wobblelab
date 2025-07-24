@@ -8,3 +8,5 @@ enum HornType(val display: String) {
   case Thick extends HornType("Thick")
   case Thin extends HornType("Thin")
 }
+
+given util.PrettyPrint[HornType] = _.display

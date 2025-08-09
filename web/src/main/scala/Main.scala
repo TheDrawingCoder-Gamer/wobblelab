@@ -299,7 +299,7 @@ object Main extends IOWebApp {
         children <-- masterGene.map { gene =>
           gene.domRecGenes.zipWithIndex.map { (it, idx) =>
             div(
-              p(s"Gene ${idx + 1}"),
+              p(s"Gene ${idx + 1} - \"${db.DomRecGeneStatic.namedValues(idx)._1}\""),
             select.withSelf { self => (
               option(value := "Dom", "Dom " + it.shared.dom.displayName),
               option(value := "Het", "Het " + it.shared.het.displayName),

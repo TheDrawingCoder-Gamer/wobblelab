@@ -11,7 +11,7 @@ import cats.effect.syntax.all.*
 import fs2.*
 import fs2.concurrent.*
 import macros.imapCopied
-import net.bulbyvr.wobblelab.db.{CalculatedMaterial, Gene, GeneticProperty, MasterDogGene, PlainGeneticProperty, PlusMinusGene, TraitType}
+import net.bulbyvr.wobblelab.db.{CalculatedMaterial, DogCalcError, Gene, GeneticProperty, MasterDogGene, PlainGeneticProperty, PlusMinusGene, TraitType}
 import org.scalajs.dom
 import dom.console
 import net.bulbyvr.wobblelab.util.ColorF
@@ -49,6 +49,17 @@ object Main extends IOWebApp {
       )
     }
 
+  def showDogError(err: db.DogCalcError): String = {
+    err match
+      case DogCalcError.ValueOutsideOfRange => "Value outside of range"
+      case DogCalcError.Improper => "Incorrect (internal error)"
+      case DogCalcError.NonIntegral => "Non integral (internal error)"
+      case DogCalcError.NonSuper => "Non super (internal error)"
+      case DogCalcError.PercentOutsideOfRange(percent) => s"Percent ${formatPercent(percent)} outside of range, use Standard Genes tab to edit manually"
+      case DogCalcError.NoBoundsForGene(prop) => s"No bounds for gene $prop"
+      case DogCalcError.NonExactIntegral => "Non exact integral"
+  }
+
   val percentFormat = new DecimalFormat("0.##%")
 
   def formatPercent(f: Float): String =
@@ -76,7 +87,7 @@ object Main extends IOWebApp {
                .foreach(it => dog.flatModify { src =>
                  src.updatedPercent(daPart, it / 100f) match
                    case Validated.Invalid(inv) =>
-                     (src, error.set(Some(inv)))
+                     (src, error.set(Some(inv.map(showDogError))))
                    case Validated.Valid(v) =>
                      (v, error.set(None))
                })
@@ -116,7 +127,7 @@ object Main extends IOWebApp {
                .foreach(it => dog.flatModify { src =>
                  src.updatedPercent(gene, it / 100f) match
                    case Validated.Invalid(inv) =>
-                     (src, error.set(Some(inv)))
+                     (src, error.set(Some(inv.map(showDogError))))
                    case Validated.Valid(v) =>
                      (v, error.set(None))
                })
@@ -158,7 +169,7 @@ object Main extends IOWebApp {
                  dog.flatModify { blawg =>
                    blawg.masterGene.setIntegral(prop, n) match
                      case Validated.Invalid(v) =>
-                       (blawg, error.set(Some(v)))
+                       (blawg, error.set(Some(v.map(showDogError))))
                      case Validated.Valid(x) =>
                        (blawg.copy(masterGene = x), error.set(None))
                  }

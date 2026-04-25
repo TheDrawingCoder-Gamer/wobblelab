@@ -73,7 +73,7 @@ class MySuite extends munit.FunSuite {
 
   test("DogMath dynamic float Plus minus") {
     val x = 0.5f
-    val y = DogMath.dynamicFloatToGeneSequence(db.GeneticProperty.BodyScaleXPlus, x, 0, db.GeneticProperty.BodyScaleX.maxBound).get
+    val y = DogMath.dynamicFloatToGeneSequence(db.GeneticProperty.BodyScaleXPlus, x, 0, db.GeneticProperty.BodyScaleX.maxBound).toOption.get
     println(y)
     val z = DogMath.getDynamicFloatFromSequence(db.GeneticProperty.BodyScaleXPlus, y, 0, db.GeneticProperty.BodyScaleX.maxBound).get
     assertEquals(x, z)

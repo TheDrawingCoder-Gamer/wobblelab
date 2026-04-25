@@ -248,7 +248,7 @@ object DogMath {
   // todo: test more rigorously
   // within the ballpark? Error COULD be chalked up to rounding error,
   // albeit 0.2 is a rather large rounding error
-  def dynamicFloatToGeneSequence(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): ValidatedNec[String, String] =
+  def dynamicFloatToGeneSequence(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): ValidatedNec[db.DogCalcError, String] =
     prop.geneType match
       case SDogGeneType.Super(maxValIncrease) =>
         val minusArg = prop match
@@ -274,12 +274,12 @@ object DogMath {
           Some(s)
            */
           if value < minVal || value > maxVal then
-            Validated.invalidNec("Value outside of range, can't convert safely")
+            Validated.invalidNec(db.DogCalcError.ValueOutsideOfRange)
           else
             Validated.validNec(floatToGeneSequence(value, minVal, maxVal, prop.defaultLen))
-      case _ => Validated.invalidNec("Not a proper")
+      case _ => Validated.invalidNec(db.DogCalcError.Improper)
 
-  def maybeDynamicFloatToGeneSequence(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): ValidatedNec[String, String] =
+  def maybeDynamicFloatToGeneSequence(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): ValidatedNec[db.DogCalcError, String] =
     prop.geneType match
       case SDogGeneType.Super(_) => dynamicFloatToGeneSequence(prop, value, minVal, maxVal)
       case _ => Validated.validNec(floatToGeneSequence(value, minVal, maxVal, prop.defaultLen))

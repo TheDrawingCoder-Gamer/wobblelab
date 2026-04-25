@@ -655,7 +655,7 @@ case class MasterDogGene
 
   // TODO: this obviously is broken in some way
   // FIXME!
-  def updatePlusMinus(prop: PlusMinusGene, value: Float, minVal: Float, maxVal: Float): ValidatedNec[String, MasterDogGene] =
+  def updatePlusMinus(prop: PlusMinusGene, value: Float, minVal: Float, maxVal: Float): ValidatedNec[DogCalcError, MasterDogGene] =
     println(value)
     val minusGene = if value < 0 then DogMath.maybeDynamicFloatToGeneSequence(prop.minus, math.abs(value), 0, minVal) else Validated.validNec("0".repeat(prop.defaultLen))
     val plusGene = if value < 0 then Validated.validNec("0".repeat(prop.defaultLen)) else DogMath.maybeDynamicFloatToGeneSequence(prop.plus, math.abs(value), 0, maxVal)
@@ -664,7 +664,7 @@ case class MasterDogGene
       this.copy(genes = genes.updated(prop.plus, plus).updated(prop.minus, minus))
 
   // If Prop is a super, then value is _unclamped_. Otherwise, value is clamped to range
-  def updateFloatValue(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): ValidatedNec[String, MasterDogGene] =
+  def updateFloatValue(prop: GeneticProperty, value: Float, minVal: Float, maxVal: Float): ValidatedNec[DogCalcError, MasterDogGene] =
     val newValue =
       prop.geneType match
         case SDogGeneType.Super(_) => DogMath.dynamicFloatToGeneSequence(prop, value, minVal, maxVal)
@@ -757,11 +757,11 @@ case class MasterDogGene
         val percent = (res - minVal) / (maxVal - minVal)
         percent
 
-  def percentToValue(prop: Gene, percent: Float)(using DogContext): ValidatedNec[String, Float] =
+  def percentToValue(prop: Gene, percent: Float)(using DogContext): ValidatedNec[DogCalcError, Float] =
     if percent < 0 || percent > 1 then
-      Validated.Invalid(NonEmptyChain.one(s"Percentage ${percent * 100} outside of range"))
+      Validated.Invalid(NonEmptyChain.one(DogCalcError.PercentOutsideOfRange(percent)))
     else
-      boundsFor(prop).toRight(s"No bounds for gene property $prop").toValidatedNec.map: (minVal, maxVal) =>
+      boundsFor(prop).toRight(DogCalcError.NoBoundsForGene(prop)).toValidatedNec.map: (minVal, maxVal) =>
         prop match
           case _: PlusMinusGene =>
             (percent * (minVal + maxVal)) - minVal
@@ -769,7 +769,7 @@ case class MasterDogGene
             (percent * (maxVal - minVal)) + minVal
 
 
-  def updatedPercent(prop: Gene, percent: Float)(using DogContext): ValidatedNec[String, MasterDogGene] =
+  def updatedPercent(prop: Gene, percent: Float)(using DogContext): ValidatedNec[DogCalcError, MasterDogGene] =
     percentToValue(prop, percent).andThen: v =>
       val (minVal, maxVal) = boundsFor(prop).get
       prop match
@@ -786,21 +786,21 @@ case class MasterDogGene
       case x: (PlusMinusGene & HasDefiniteBounds) => inferPlusMinus(x)
       case x: (GeneticProperty & HasDefiniteBounds) => inferFloatFromGene(x)
 
-  def setIntegral(prop: PlainGeneticProperty & HasDefiniteBounds, value: Int): ValidatedNec[String, MasterDogGene] =
+  def setIntegral(prop: PlainGeneticProperty & HasDefiniteBounds, value: Int): ValidatedNec[DogCalcError, MasterDogGene] =
     if prop.integral then
       prop.geneType match
         case SDogGeneType.Super(maxValIncrease) =>
           if maxValIncrease != 1 then
-            Validated.invalidNec("Not an exact integral, can't safely convert")
+            Validated.invalidNec(DogCalcError.NonExactIntegral)
           else
             val realLen = math.min(prop.defaultLen + value - 1, 20)
             val maxBound = (realLen - prop.defaultLen) * maxValIncrease + prop.maxBound
             val r = DogMath.floatToGeneSequence(value, prop.minBound, maxBound, realLen)
             Validated.valid(copy(genes = genes.updated(prop, r)))
         case _ =>
-          Validated.invalidNec("Property isn't super")
+          Validated.invalidNec(DogCalcError.NonSuper)
     else
-      Validated.invalidNec("Property isn't integral")
+      Validated.invalidNec(DogCalcError.NonIntegral)
 
 
   private def getSizeForRepeatingSizeFloat(sizeFloat: Int): Int =

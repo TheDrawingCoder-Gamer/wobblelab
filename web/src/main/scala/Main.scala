@@ -252,8 +252,16 @@ object Main extends IOWebApp {
               },
               value <-- ageProgress.map(_.toString)
             )
-          }
+          },
+          button(
+            cls := "age-btn",
+            "Make dog unageable",
+            onClick --> {
+              _.foreach(_ => ageProgress.set(Float.NaN))
+            }
+          )
         ),
+          
         strCompTextbox("Random Seed:", SignallingRef.lens[IO, GameDog, String](dog)(_.masterGene.randomSeed, src => it => src.copy(masterGene = src.masterGene.copy(randomSeed = it))))
       )
     )

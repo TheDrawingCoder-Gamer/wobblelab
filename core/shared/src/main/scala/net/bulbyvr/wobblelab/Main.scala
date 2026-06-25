@@ -243,6 +243,16 @@ enum DogAge {
   
   def ratio: Float =
     this.ordinal.toFloat / DogAge.values.length
+
+  override def toString: String =
+    this match
+      case Empty => "NONE"
+      case Puppy => "PUPPY"
+      case Child => "CHILD"
+      case Teen => "TEEN"
+      case YoungAdult => "YOUNG_ADULT"
+      case Adult => "ADULT"
+      case Ancient => "ANCIENT"
 }
 
 given util.PrettyPrint[DogAge] =

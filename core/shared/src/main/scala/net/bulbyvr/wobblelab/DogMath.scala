@@ -326,4 +326,10 @@ object DogMath {
 
         Some(num)
       case _ => None
+
+  def parseFloatAllowNaN(in: String): Option[Float] =
+    if in == "NaN" then
+      Some(Float.NaN)
+    else
+      in.toFloatOption
 }

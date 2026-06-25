@@ -234,7 +234,7 @@ object Main extends IOWebApp {
           "Age:",
           select.withSelf { self =>
             (
-              DogAge.values.filter(_ != DogAge.Empty).map(it => option(value := it.ordinal.toString, util.PrettyPrint[DogAge].prettyPrint(it))).toList,
+              DogAge.values.map(it => option(value := it.ordinal.toString, util.PrettyPrint[DogAge].prettyPrint(it))).toList,
               onChange --> {
                 _.evalMap(_ => self.value.get).map(DogAge.parseString).foreach(ageSignal.set)
               },

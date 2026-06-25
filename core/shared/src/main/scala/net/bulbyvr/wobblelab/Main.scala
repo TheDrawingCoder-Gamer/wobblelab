@@ -14,6 +14,13 @@ import wobblelab.util.*
 object DogRegistry {
   val currentGeneVersion: Int = 3
   val dogExportSeperator: String = "^"
+  def formatFloatAllowNaN(float: Float): String =
+    val floatFormatter = new DecimalFormat("0.#####")
+    if float.isNaN then
+      "NaN"
+    else
+      floatFormatter.format(float)
+
   def exportDog(rawDog : RawDog) : String = {
     val dogGene = DogMath.geneticEncode(rawDog.dogGene)
     val domRecGene = DogMath.geneticEncode(rawDog.domRecGene.replace('A', '1').replace('a', '0'))
@@ -21,7 +28,7 @@ object DogRegistry {
     DogMath.scramble(dogExportSeperator.repeat(3) + rawDog.geneVersion.versionId.toString + dogExportSeperator +
       dogGene + dogExportSeperator + domRecGene + dogExportSeperator + rawDog.dogAge.toString.toUpperCase +
       dogExportSeperator
-      + floatFormatter.format(rawDog.dogAgeProgress)
+      + formatFloatAllowNaN(rawDog.dogAgeProgress)
       + dogExportSeperator
       + floatFormatter.format(rawDog.eolModifier)
       + dogExportSeperator
@@ -54,7 +61,7 @@ object DogRegistry {
         ,sectionParser.map(DogMath.geneticDecode)
         ,sectionParser.map(DogMath.geneticDecode).map(_.replace('0', 'a').replace('1', 'A'))
         ,sectionParser.map(DogAge.parseString)
-        ,sectionParser.mapFilter(_.toFloatOption)
+        ,sectionParser.mapFilter(DogMath.parseFloatAllowNaN)
         ,flag2thingies
         ,flag2thingies
         ,if flag then DogPersonality.parser <* Parser.char('^') else Parser.pure(DogPersonality.empty)
@@ -64,6 +71,7 @@ object DogRegistry {
     parser.parseAll(text).toOption
 
   }
+
 }
 
 enum GeneVersion(val versionId: Int, val name: String) {
@@ -238,7 +246,7 @@ enum DogAge {
 }
 
 given util.PrettyPrint[DogAge] =
-  case DogAge.Empty => "(None)"
+  case DogAge.Empty => "Ageless"
   case DogAge.Puppy => "Puppy"
   case DogAge.Child => "Child"
   case DogAge.Teen => "Teen"
